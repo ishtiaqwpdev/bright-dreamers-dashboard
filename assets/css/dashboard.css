@@ -29,6 +29,7 @@ img{max-width:100%}
 .app{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100vh}
 /* Sidebar */
 .side{background:var(--card);border-right:1px solid var(--line);padding:18px 14px 24px;position:sticky;top:env(safe-area-inset-top,0px);height:100vh;overflow:auto;display:flex;flex-direction:column;gap:14px}
+.side__logo{display:block;padding:0 6px}.side__logo img{width:100%;max-width:210px;height:auto;aspect-ratio:440/251;object-fit:contain;display:block;margin:0 auto}
 .side{scrollbar-width:thin;scrollbar-color:var(--pink) var(--pink-soft)}
 .side::-webkit-scrollbar{width:8px}
 .side::-webkit-scrollbar-track{background:var(--pink-soft);border-radius:99px}
