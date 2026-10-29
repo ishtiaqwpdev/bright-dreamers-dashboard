@@ -1,7 +1,7 @@
 === Bright Dreamers Parent Dashboard ===
 Requires at least: 5.8
 Requires PHP: 7.4
-Stable tag: 1.8.2
+Stable tag: 1.8.3
 License: GPLv2 or later
 
 Parent dashboard for Bright Dreamers: a child's portfolio with entries, projects, goals, skills, a journey timeline, a printable book and email sharing.
@@ -27,6 +27,9 @@ Parent dashboard for Bright Dreamers: a child's portfolio with entries, projects
 * Deleting the plugin removes its settings only. Parent accounts, portfolios and photos are kept.
 
 == Changelog ==
+= 1.8.3 =
+* Removed the Bright Dreamers logo from the top of the dashboard sidebar. The menu now starts at the top. (The logo stays on the login screen and the PDF cover.)
+
 = 1.8.2 =
 * Entry detail page: the photo box now takes the shape of the photo, so the photo fills the full width with no cropping (very tall photos are limited to 680px high). Fixed demo photos showing small.
 

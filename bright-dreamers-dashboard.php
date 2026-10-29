@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Bright Dreamers Parent Dashboard
  * Description:       Parent dashboard for Bright Dreamers: child portfolio, entries, projects, goals, skills, journey timeline, printable book and email sharing, with parent login and sign-up.
- * Version:           1.8.2
+ * Version:           1.8.3
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Visiboom
@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'BDD_VERSION', '1.8.2' );
+define( 'BDD_VERSION', '1.8.3' );
 define( 'BDD_FILE', __FILE__ );
 define( 'BDD_DIR', plugin_dir_path( __FILE__ ) );
 define( 'BDD_URL', plugin_dir_url( __FILE__ ) );

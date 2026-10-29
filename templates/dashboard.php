@@ -30,7 +30,6 @@ $bdd_icon    = get_site_icon_url( 64 );
 <body class="bd-dashboard">
 <div class="app" id="app">
   <aside class="side" id="side" aria-label="Dashboard navigation">
-    <a class="side__logo" href="#dashboard"><img data-i="logo" alt="<?php echo esc_attr( get_bloginfo( 'name' ) ); ?>" width="440" height="251"></a>
     <nav class="nav" id="nav"></nav>
     <div class="side__quote"><img data-i="quote" alt="Big ideas, brighter futures!" width="239" height="303"></div>
   </aside>
