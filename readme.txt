@@ -1,7 +1,7 @@
 === Bright Dreamers Parent Dashboard ===
 Requires at least: 5.8
 Requires PHP: 7.4
-Stable tag: 1.8.5
+Stable tag: 1.9.0
 License: GPLv2 or later
 
 Parent dashboard for Bright Dreamers: a child's portfolio with entries, projects, goals, skills, a journey timeline, a printable book and email sharing.
@@ -27,6 +27,13 @@ Parent dashboard for Bright Dreamers: a child's portfolio with entries, projects
 * Deleting the plugin removes its settings only. Parent accounts, portfolios and photos are kept.
 
 == Changelog ==
+= 1.9.0 =
+* Parent / guardian confirmation (new text: "...to create and manage this private portfolio.", version v2) is now asked once on Create Account (required by the server). Older accounts that have not confirmed are asked once on the Profile page (or Account Settings). Earlier v1 confirmations stay valid.
+* Upload helper text under every photo upload: "Upload only photos, certificates, or files you are authorized to provide."
+* View Portfolio: privacy notice (no checkbox).
+* Profile: "Preferred Name / Nickname" with helper text; the full preferred name is now used everywhere (it no longer takes only the first word). Create Account asks for the child's preferred name.
+* "Delete portfolio": final button "Delete Portfolio Data". It now deletes the entries, the child's profile, the share history AND the private photo files. If a file cannot be deleted, nothing is cleared and an error is shown. Kept: the parent account, settings, the guardian confirmation and a deletion record (counts only). Old public Media Library copies are still removed separately by an admin.
+
 = 1.8.5 =
 * Email Share: new helper text, a privacy notice above Send, updated confirmation checkbox text (Send stays disabled until ticked; server still requires confirm_share = 1), new default message ending "Shared from Bright Dreamers", Share history shown as a table (Date, Recipient(s), Subject, Status, Use again), and a paper-plane Email Share icon. No public URLs or file links are added to emails.
 

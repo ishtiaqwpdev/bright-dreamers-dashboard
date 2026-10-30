@@ -578,9 +578,11 @@ function bdd_removable_public_photos() {
 	return $out;
 }
 
-/* ---------- Parent / guardian consent (Account Settings) ---------- */
+/* ---------- Parent / guardian consent (asked once: Create Account, or Profile / Account Settings for older accounts) ---------- */
 
-define( 'BDD_CONSENT_VERSION', 'v1' );
+// v1 = "...to manage this private portfolio." (Account Settings, 1.6.0)
+// v2 = "...to create and manage this private portfolio." (1.9.0). Earlier v1 confirmations stay valid.
+define( 'BDD_CONSENT_VERSION', 'v2' );
 
 /**
  * Stored once per parent account:
@@ -646,7 +648,7 @@ function bdd_is_bulk_clear( $new_state, $old_state ) {
  * when, how many entries, and that the confirmation was given. No portfolio contents.
  * Each parent account has one child portfolio, so the portfolio is identified by the parent ID.
  */
-function bdd_log_portfolio_clear( $owner_id, $by_user_id, $entries_removed ) {
+function bdd_log_portfolio_clear( $owner_id, $by_user_id, $entries_removed, $files_removed = 0 ) {
 	$log = get_user_meta( (int) $owner_id, 'bdd_delete_log', true );
 	$log = is_array( $log ) ? $log : array();
 	$log[] = array(
@@ -654,6 +656,7 @@ function bdd_log_portfolio_clear( $owner_id, $by_user_id, $entries_removed ) {
 		'portfolio_id'    => (int) $owner_id,
 		'deleted_by'      => (int) $by_user_id,
 		'entries_removed' => (int) $entries_removed,
+		'files_removed'   => (int) $files_removed,
 		'deleted_at'      => time(),
 		'confirmed'       => true,
 	);
@@ -661,4 +664,55 @@ function bdd_log_portfolio_clear( $owner_id, $by_user_id, $entries_removed ) {
 		$log = array_slice( $log, -100 );
 	}
 	update_user_meta( (int) $owner_id, 'bdd_delete_log', $log );
+}
+
+/**
+ * Did the child's profile text change? Used to ask for the parent / guardian confirmation once
+ * before a profile is first set up. Missing keys count as empty text.
+ */
+function bdd_profile_text_changed( $new_state, $old_state ) {
+	$new = is_array( $new_state ) && isset( $new_state['profile'] ) && is_array( $new_state['profile'] ) ? $new_state['profile'] : array();
+	$old = is_array( $old_state ) && isset( $old_state['profile'] ) && is_array( $old_state['profile'] ) ? $old_state['profile'] : array();
+	foreach ( array( 'name', 'age', 'location', 'interests', 'about', 'dream', 'quote' ) as $k ) {
+		$a = isset( $new[ $k ] ) && is_scalar( $new[ $k ] ) ? trim( (string) $new[ $k ] ) : '';
+		$b = isset( $old[ $k ] ) && is_scalar( $old[ $k ] ) ? trim( (string) $old[ $k ] ) : '';
+		if ( $a !== $b ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+ * Delete every private photo file of one portfolio (uploads/bdd-private/<owner>/).
+ * Returns the number of files removed, or WP_Error if any file could not be removed
+ * (nothing is reported as deleted in that case, so the parent can try again).
+ */
+function bdd_delete_private_files( $owner_id ) {
+	$owner_id = (int) $owner_id;
+	if ( $owner_id < 1 ) {
+		return 0;
+	}
+	$dir = bdd_private_dir() . '/' . $owner_id;
+	if ( ! is_dir( $dir ) ) {
+		return 0;
+	}
+	$files = glob( $dir . '/*.{jpg,png,webp}', GLOB_BRACE );
+	$files = is_array( $files ) ? $files : array();
+	$count = 0;
+	$fail  = 0;
+	foreach ( $files as $file ) {
+		if ( ! is_file( $file ) ) {
+			continue;
+		}
+		if ( @unlink( $file ) && ! file_exists( $file ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+			$count++;
+		} else {
+			$fail++;
+		}
+	}
+	if ( $fail ) {
+		return new WP_Error( 'bdd_delete_files', sprintf( '%d file(s) could not be deleted.', $fail ) );
+	}
+	return $count;
 }

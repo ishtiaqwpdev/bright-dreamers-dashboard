@@ -73,7 +73,7 @@ function printBook(){
   document.body.appendChild(f);
  });
 }
-var CONSENT_TEXT='I confirm that I am this child’s parent or legal guardian, or I am authorized by the parent or legal guardian to manage this private portfolio.';
+var CONSENT_TEXT='I confirm that I am this child’s parent or legal guardian, or I am authorized by the parent or legal guardian to create and manage this private portfolio.';
 function consentBlock(){
  var link=BD.privacyUrl?' <a class="link" href="'+esc(BD.privacyUrl)+'" target="_blank" rel="noopener">Privacy Policy</a>':'';
  if(BD.consent){var d=BD.consent.at?new Date(BD.consent.at):null,when=d&&!isNaN(d)?d.getDate()+' '+MON[d.getMonth()]+' '+d.getFullYear():'';
@@ -81,6 +81,9 @@ function consentBlock(){
  return '<div class="consent"><label class="sw" for="ac-consent"><input type="checkbox" id="ac-consent" aria-required="true" aria-describedby="consentErr"><span>'+CONSENT_TEXT+'</span></label>'+(link?'<span class="consent__link">'+link+'</span>':'')+'<span class="err consent__note" id="consentErr" role="alert" hidden>Please confirm this statement to continue.</span></div>';
 }
 function consentError(on){var e=document.getElementById('consentErr'),c=document.getElementById('ac-consent');if(e)e.hidden=!on;if(c){if(on){c.setAttribute('aria-invalid','true');c.focus();}else c.removeAttribute('aria-invalid');}}
+var UPLOAD_HELP='<p class="upload-help">Upload only photos, certificates, or files you are authorized to provide.</p>';
+function consentAsk(p){var link=BD.privacyUrl?'<a class="link" href="'+esc(BD.privacyUrl)+'" target="_blank" rel="noopener">Privacy Policy</a>':'';return '<div class="consent consent--ask"><label class="sw" for="'+p+'-consent"><input type="checkbox" id="'+p+'-consent" aria-required="true" aria-describedby="'+p+'ConsentErr"><span>'+CONSENT_TEXT+'</span></label>'+(link?'<span class="consent__link">'+link+'</span>':'')+'<span class="err consent__note" id="'+p+'ConsentErr" role="alert" hidden>Please confirm this statement to continue.</span></div>';}
+function consentAskError(p,on){var e=document.getElementById(p+'ConsentErr'),c=document.getElementById(p+'-consent');if(e)e.hidden=!on;if(c){if(on){c.setAttribute('aria-invalid','true');c.focus();}else c.removeAttribute('aria-invalid');}}
 function emailListValid(){var el=document.getElementById('em-to');if(!el)return false;var l=el.value.split(',').map(function(s){return s.trim();}).filter(Boolean);return l.length>0&&l.length<=5&&l.every(function(s){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);});}
 /* Send stays disabled until a valid recipient is entered and the confirmation is ticked. */
 function updateSendState(){var b=document.getElementById('emSend'),c=document.getElementById('em-confirm');if(!b||!c)return;b.disabled=!(c.checked&&emailListValid());}
@@ -111,7 +114,7 @@ function hasEnd(t){return t==='activity'||t==='project';}
 function dRange(e,short){var s=fdate(e.date,short);if(e.end&&hasEnd(e.type))return s+(e.end===e.date?'':' – '+fdate(e.end,short));if(e.type==='activity'&&e.status==='ongoing')return s+' – Present';return s;}
 function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function ageLoc(p){return (p.age?'Age '+esc(p.age):'')+(p.age&&p.location?' &nbsp;|&nbsp; ':'')+esc(p.location||'');}
-function first(){return (S.profile.name||'Your child').split(' ')[0];}
+function first(){return (S.profile.name||'').trim()||'Your child';}
 function byType(t){return S.entries.filter(function(e){return Array.isArray(t)?t.indexOf(e.type)>-1:e.type===t;});}
 function byDate(a){return a.slice().sort(function(x,y){return (y.date||'').localeCompare(x.date||'');});}
 function get(id){for(var i=0;i<S.entries.length;i++)if(S.entries[i].id===id)return S.entries[i];return null;}
@@ -512,7 +515,7 @@ function vAdd(){
    f+='<label class="field"><span>Source <span class="req">*</span></span><select class="input" id="f-source">'+opt(so5,d.source)+'</select><small class="hint">'+(admin?'Where did this certificate come from? Only admins see the Bright Dreamers option.':'Where did this certificate come from?')+'</small></label>';}
  }
  f+='<div class="field field--full"><span class="flabel">'+(t==='skill'?'Photo':t==='certificate'?'Upload photos or files':ach?'Upload photos or certificate':'Upload photos')+' <small>(optional, JPG or PNG)</small></span><div class="photos">'+d.photos.map(function(p,i){return '<div class="thumb"><img src="'+src(p)+'" alt=""><button type="button" data-act="unphoto" data-i="'+i+'" aria-label="Remove photo">×</button></div>';}).join('')+
-  '<label class="drop" id="drop">'+I.upload+'Add Photos<input type="file" id="f-photos" accept="image/*" multiple hidden></label></div></div>';
+  '<label class="drop" id="drop">'+I.upload+'Add Photos<input type="file" id="f-photos" accept="image/*" multiple hidden></label></div>'+UPLOAD_HELP+'</div>';
  var it=INTRO[t]||INTRO.activity,ttl=isEdit?it[0].replace(/^Add an? /,'Edit '):it[0];
  return '<div class="backbar"><button class="back" data-act="cancel">'+I.back+'Back</button></div>'+
  (sideFor(t)?'<div class="add-layout">':'')+'<form class="card form" id="entryForm" novalidate>'+
@@ -614,13 +617,13 @@ function vEntry(){
 function vProfile(){
  var p=S.profile,canAdj=canAdjustPhoto();
  return head('profile','My Child’s Profile','The basics that appear on the portfolio cover.','')+
- '<form class="card form" id="profileForm" novalidate><div class="photo-pick">'+(canAdj?'<button type="button" class="photo-pick__img" data-act="pf-adjust" aria-label="Adjust photo"><img src="'+src(p.photo)+'" alt="'+esc(p.name)+'" id="pfImg"><span class="photo-pick__hint" aria-hidden="true">'+I.edit+'</span></button>':'<img src="'+src(p.photo)+'" alt="'+esc(p.name)+'" id="pfImg">')+'<div style="display:grid;gap:8px;min-width:0"><div style="display:flex;gap:8px;flex-wrap:wrap"><label class="btn btn--line btn--sm">Change photo<input type="file" id="pf-photo" accept="image/*" hidden></label>'+(canAdj?'<button type="button" class="btn btn--ghost btn--sm" data-act="pf-adjust">Adjust photo</button>':'')+'</div><span class="muted" style="font-size:.85rem">'+(canCover()?'Shown on the dashboard and portfolio cover. You can zoom, move, center and rotate the photo.':'Not shown on the dashboard or portfolio covers (turned off in Account Settings). You can still zoom, move, center and rotate the photo.')+'</span></div></div>'+
+ '<form class="card form" id="profileForm" novalidate><div class="photo-pick">'+(canAdj?'<button type="button" class="photo-pick__img" data-act="pf-adjust" aria-label="Adjust photo"><img src="'+src(p.photo)+'" alt="'+esc(p.name)+'" id="pfImg"><span class="photo-pick__hint" aria-hidden="true">'+I.edit+'</span></button>':'<img src="'+src(p.photo)+'" alt="'+esc(p.name)+'" id="pfImg">')+'<div style="display:grid;gap:8px;min-width:0"><div style="display:flex;gap:8px;flex-wrap:wrap"><label class="btn btn--line btn--sm">Change photo<input type="file" id="pf-photo" accept="image/*" hidden></label>'+(canAdj?'<button type="button" class="btn btn--ghost btn--sm" data-act="pf-adjust">Adjust photo</button>':'')+'</div><span class="muted" style="font-size:.85rem">'+(canCover()?'Shown on the dashboard and portfolio cover. You can zoom, move, center and rotate the photo.':'Not shown on the dashboard or portfolio covers (turned off in Account Settings). You can still zoom, move, center and rotate the photo.')+'</span>'+UPLOAD_HELP+'</div></div>'+
  '<div class="fgrid">'+
- pf('name','Name',p.name)+pf('age','Age',p.age)+pf('location','Location',p.location)+pf('interests','Interests',p.interests)+
+ '<label class="field"><span>Preferred Name / Nickname</span><input class="input" id="pf-name" value="'+esc(p.name)+'" aria-describedby="pfNameHelp"><small class="field__help" id="pfNameHelp">Use the name you would like shown on your child\u2019s private portfolio. A last name is not required.</small></label>'+pf('age','Age',p.age)+pf('location','Location',p.location)+pf('interests','Interests',p.interests)+
  '<label class="field field--full"><span>About me</span><textarea class="input" id="pf-about" rows="3">'+esc(p.about)+'</textarea></label>'+
  '<label class="field field--full"><span>My dream</span><textarea class="input" id="pf-dream" rows="2">'+esc(p.dream)+'</textarea></label>'+
  '<label class="field field--full"><span>Favorite saying <small>(shown on the cover)</small></span><input class="input" id="pf-quote" value="'+esc(p.quote)+'" placeholder="e.g. I love exploring new ideas and helping others." maxlength="140"></label>'+
- '</div><div class="form__foot"><button class="btn" type="submit">Save Profile</button></div></form>';
+ '</div>'+(!BD.consent&&!BD.actingFor?consentAsk('pf'):'')+'<div class="form__foot"><button class="btn" type="submit">Save Profile</button></div></form>';
 }
 function pf(k,l,v){return '<label class="field"><span>'+l+'</span><input class="input" id="pf-'+k+'" value="'+esc(v)+'"></label>';}
 
@@ -629,6 +632,7 @@ function vPortfolio(){
  var p=S.profile,j=byDate(S.entries.filter(function(e){return e.type!=='skill'&&e.type!=='goal';})).slice(0,5).reverse(),st=stats();
  var skills=byType('skill').slice().sort(function(a,b){return LVL_PCT[lvlOf(b)]-LVL_PCT[lvlOf(a)];}).slice(0,6);
  return '<div class="backbar"><h2>'+esc(first())+'’s Portfolio</h2><div style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap"><a class="btn btn--line btn--sm" href="#book">'+I.doc+'Printable Book</a>'+(canShare()?'<a class="btn btn--sm" href="#email">Share by Email</a>':'<button type="button" class="btn btn--sm" disabled title="Turn on \u201cAllow me to share portfolio copies by email\u201d in Account Settings">Share by Email</button>')+'</div></div>'+
+ '<p class="share-notice pf-private">'+I_LOCK+'<span>This portfolio is private and visible only through your account unless you choose to share it.</span></p>'+
  '<section class="pf-hero"><img src="'+coverImg()+'" alt="'+esc(p.name)+'"><div style="min-width:0"><h2>'+esc(p.name)+'</h2><p class="muted" style="margin:4px 0 0">Age '+esc(p.age)+' &nbsp;|&nbsp; '+esc(p.location)+'</p><q>'+esc(p.quote)+'</q></div></section>'+
  '<div class="pf-grid"><section class="card pf-box"><h3><img '+img('profile')+' alt="">About Me</h3><p>'+esc(p.about)+'</p></section><section class="card pf-box"><h3><img '+img('achievements')+' alt="">My Interests</h3><p>'+esc(p.interests)+'</p></section><section class="card pf-box"><h3><img '+img('goals')+' alt="">My Dream</h3><p>'+esc(p.dream)+'</p></section></div>'+
  '<section class="card panel"><div class="h-sec"><h3>My Journey</h3><a class="link" href="#journey">Full timeline →</a></div>'+(j.length?'<div class="journey">'+j.map(function(e){return '<button data-act="open" data-id="'+e.id+'"><img src="'+photo(e)+'" alt=""><small>'+fdate(e.date,true)+'</small><strong>'+esc(e.title)+'</strong></button>';}).join('')+'</div>':'<p class="muted">No entries yet.</p>')+'</section>'+
@@ -697,7 +701,7 @@ function vAccount(){
  '<section class="card panel"><h3>Backup</h3><p class="muted" style="margin:0">Entries are saved to your account on this website. Copy a backup to keep an extra copy or move it to another account.</p><textarea class="input code" id="backup" readonly aria-label="Backup data"></textarea><div class="form__foot" style="justify-content:flex-start"><button class="btn btn--line btn--sm" data-act="bk-make">Create backup</button><button class="btn btn--line btn--sm" data-act="bk-copy">Copy backup</button><label class="btn btn--ghost btn--sm">Restore from file<input type="file" id="bk-file" accept=".json,application/json,text/plain" hidden></label></div>'+
  '<label class="field"><span>Or paste a backup and restore</span><textarea class="input code" id="restore" style="min-height:90px" placeholder="Paste backup text here"></textarea></label><div><button class="btn btn--ghost btn--sm" data-act="bk-restore">Restore pasted backup</button></div></section>'+
  '<section class="card panel"><h3>Start over</h3><p class="muted" style="margin:0">'+(S.demo?'The dashboard is showing example data for Maya.':'Your own data is saved to your account.')+'</p>'+
- (S.confirmReset?'<div class="confirm">'+(S.confirmReset==='clear'?'Remove every entry and start with an empty portfolio?':'Replace everything with the Maya example data?')+(S.confirmReset==='clear'?'<div class="consent del-confirm"><label class="sw" for="del-confirm"><input type="checkbox" id="del-confirm" aria-required="true" aria-describedby="delConfirmErr"><span>I understand this will permanently delete this child\u2019s portfolio data and associated private files, subject to any legally required retention.</span></label><span class="err consent__note" id="delConfirmErr" role="alert" hidden>Please confirm this statement before deleting.</span></div>':'')+'<button class="btn btn--sm" data-act="reset-yes"'+(S.confirmReset==='clear'?' id="delYes" disabled':'')+'>Yes, continue</button><button class="btn btn--ghost btn--sm" data-act="reset-no">Cancel</button></div>':'<div class="form__foot" style="justify-content:flex-start"><button class="btn btn--danger btn--sm" data-act="reset" data-v="clear">Clear all entries</button><button class="btn btn--ghost btn--sm" data-act="reset" data-v="demo">Load example data</button></div>')+'</section>'+
+ (S.confirmReset?'<div class="confirm">'+(S.confirmReset==='clear'?'Delete this child\u2019s portfolio data and private files?':'Replace everything with the Maya example data?')+(S.confirmReset==='clear'?'<div class="consent del-confirm"><label class="sw" for="del-confirm"><input type="checkbox" id="del-confirm" aria-required="true" aria-describedby="delConfirmErr"><span>I understand this will permanently delete this child\u2019s portfolio data and associated private files, subject to any legally required retention.</span></label><span class="err consent__note" id="delConfirmErr" role="alert" hidden>Please confirm this statement before deleting.</span></div>':'')+'<button class="btn btn--sm'+(S.confirmReset==='clear'?' btn--danger-solid':'')+'" data-act="reset-yes"'+(S.confirmReset==='clear'?' id="delYes" disabled':'')+'>'+(S.confirmReset==='clear'?'Delete Portfolio Data':'Yes, continue')+'</button><button class="btn btn--ghost btn--sm" data-act="reset-no">Cancel</button></div>':'<div class="form__foot" style="justify-content:flex-start"><button class="btn btn--danger btn--sm" data-act="reset" data-v="clear">Delete portfolio</button><button class="btn btn--ghost btn--sm" data-act="reset" data-v="demo">Load example data</button></div>')+'</section>'+
  (memoryOnly?'<p class="note">This browser is blocking storage, so changes will be lost when the page closes.</p>':'');
 }
 
@@ -720,10 +724,11 @@ function vAuth(){
   '</form>'
  :'<form id="signupForm" class="auth__fields" novalidate>'+
    '<label class="field"><span>Your name</span><input class="input" id="su-name" autocomplete="name" placeholder="e.g. Sarah Thompson"></label>'+
-   '<label class="field"><span>Child’s name</span><input class="input" id="su-child" placeholder="e.g. Maya Thompson"></label>'+
+   '<label class="field"><span>Child’s preferred name / nickname</span><input class="input" id="su-child" placeholder="e.g. Maya" aria-describedby="suChildHelp"><small class="field__help" id="suChildHelp">A last name is not required.</small></label>'+
    '<label class="field"><span>Email</span><input class="input" id="su-email" type="email" autocomplete="email" placeholder="you@example.com"></label>'+
    pwField('su-pw','Password <small>(at least 6 characters)</small>','new-password')+
    '<p class="muted" style="margin:0;font-size:.85rem">Your child\u2019s portfolio is private to your account.</p>'+
+   consentAsk('su')+
    '<button class="btn" type="submit">Create Account</button>'+
   '</form>')+
  '</div></div>';
@@ -743,8 +748,9 @@ document.addEventListener('submit',function(ev){
   if(!nm||!ch||!em2||!pw2)return authError('Please fill in every field.');
   if(!EM.test(em2))return authError('Enter a valid email address.');
   if(pw2.length<6)return authError('Password must be at least 6 characters.');
+  var suc=document.getElementById('su-consent');if(!suc||!suc.checked){authError('');consentAskError('su',true);return;}consentAskError('su',false);
   authBusy(f,true);
-  api('register',{name:nm,child:ch,email:em2,password:pw2,nonce:BD.authNonce},true).then(function(){if(location.hash==='#profile')location.reload();else{location.hash='profile';location.reload();}},function(e){authBusy(f,false);authError(e.message);});
+  api('register',{name:nm,child:ch,email:em2,password:pw2,consent_guardian:1,nonce:BD.authNonce},true).then(function(){if(location.hash==='#profile')location.reload();else{location.hash='profile';location.reload();}},function(e){authBusy(f,false);authError(e.message);});
  }
 });
 function authBusy(f,on){var b=f.querySelector('button[type=submit]');if(!b)return;if(on){b.dataset.label=b.textContent;b.textContent='Please wait…';}else if(b.dataset.label){b.textContent=b.dataset.label;}b.disabled=on;}
@@ -804,13 +810,14 @@ document.addEventListener('click',function(ev){
   case 'reset-yes':var mode=S.confirmReset;
    if(mode==='clear'){var dc=document.getElementById('del-confirm');if(!dc||!dc.checked){delConfirmError(true);break;}delConfirmError(false);t.disabled=true;
     clearTimeout(saveT);saveT=null;var cp={confirm_delete:1};if(BD.actingFor)cp.parent=BD.actingFor.id;
-    api('clear',cp).then(function(j){if(j&&j.state&&Array.isArray(j.state.entries))S=j.state;else{var keep={profile:S.profile,parent:S.parent};S=seed();S.entries=[];S.demo=false;S.profile=keep.profile;S.parent=keep.parent;}syncUser();S.confirmReset=null;toast('All entries cleared');go('dashboard');},function(e){var b=document.getElementById('delYes'),c2=document.getElementById('del-confirm');if(b)b.disabled=!(c2&&c2.checked);if(/confirm this statement/i.test(e.message||''))delConfirmError(true);toast(e.message);});
+    api('clear',cp).then(function(j){if(j&&j.state&&Array.isArray(j.state.entries))S=j.state;else{var keep={profile:S.profile,parent:S.parent};S=seed();S.entries=[];S.demo=false;S.profile={name:'',age:'',location:'',interests:'',about:'',dream:'',quote:'',photo:'k:profile'};S.parent=keep.parent;}syncUser();S.confirmReset=null;toast('Portfolio data deleted');go('dashboard');},function(e){var b=document.getElementById('delYes'),c2=document.getElementById('del-confirm');if(b)b.disabled=!(c2&&c2.checked);if(/confirm this statement/i.test(e.message||''))delConfirmError(true);toast(e.message);});
     break;}
    var kp=S.parent;S=seed();S.parent=kp;save();toast('Example data loaded');go('dashboard');break;
  }
 });
 document.addEventListener('change',function(ev){
  var t=ev.target;
+ if(t.id==='su-consent'||t.id==='pf-consent'){if(t.checked)consentAskError(t.id.slice(0,2),false);}
  if(t.id==='del-confirm'){var dy=document.getElementById('delYes');if(dy)dy.disabled=!t.checked;if(t.checked)delConfirmError(false);}
  if(t.id==='em-confirm'){if(t.checked)confirmError(false);updateSendState();}
  if(t.id==='ac-consent'&&t.checked)consentError(false);
@@ -828,7 +835,9 @@ document.addEventListener('change',function(ev){
 });
 document.addEventListener('submit',function(ev){
  var f=ev.target;
- if(f.id==='profileForm'){ev.preventDefault();['name','age','location','interests','about','dream','quote'].forEach(function(k){S.profile[k]=document.getElementById('pf-'+k).value.trim();});if(!S.profile.name)S.profile.name='My child';S.demo=false;save();toast('Profile saved');render();}
+ if(f.id==='profileForm'){ev.preventDefault();var pfSave=function(){['name','age','location','interests','about','dream','quote'].forEach(function(k){S.profile[k]=document.getElementById('pf-'+k).value.trim();});if(!S.profile.name)S.profile.name='My child';S.demo=false;save();toast('Profile saved');render();};
+  if(!BD.consent&&!BD.actingFor){var pfc=document.getElementById('pf-consent');if(!pfc||!pfc.checked){consentAskError('pf',true);return;}consentAskError('pf',false);api('consent',{consent_guardian:1}).then(function(j){if(j&&j.consent)BD.consent=j.consent;pfSave();},function(e){toast(e.message);});return;}
+  pfSave();}
  if(f.id==='accForm'){ev.preventDefault();var an=document.getElementById('ac-name').value.trim(),ae=document.getElementById('ac-email').value.trim(),np=document.getElementById('ac-pw').value;
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ae)){toast('Enter a valid email. You use it to log in.');return;}if(np&&np.length<6){toast('Password must be at least 6 characters.');return;}
   var needConsent=!BD.consent;if(needConsent){var cc=document.getElementById('ac-consent');if(!cc||!cc.checked){consentError(true);return;}consentError(false);}

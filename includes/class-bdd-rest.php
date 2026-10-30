@@ -27,6 +27,7 @@ class BDD_Rest {
 		register_rest_route( self::NS, '/account', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'account' ), 'permission_callback' => $logged_in ) );
 		register_rest_route( self::NS, '/email', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'email' ), 'permission_callback' => $logged_in ) );
 		register_rest_route( self::NS, '/clear', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'clear_entries' ), 'permission_callback' => $logged_in ) );
+		register_rest_route( self::NS, '/consent', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'consent' ), 'permission_callback' => $logged_in ) );
 		register_rest_route( self::NS, '/logout', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'logout' ), 'permission_callback' => $logged_in ) );
 		register_rest_route( self::NS, '/login', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'login' ), 'permission_callback' => $public ) );
 		register_rest_route( self::NS, '/register', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'register' ), 'permission_callback' => $public ) );
@@ -62,15 +63,35 @@ class BDD_Rest {
 			return $state;
 		}
 		if ( bdd_is_bulk_clear( $state, $old ) ) {
-			return self::error( 'bdd_use_clear', __( 'To remove every entry, use “Clear all entries” in Account Settings.', 'bright-dreamers-dashboard' ), 400 );
+			return self::error( 'bdd_use_clear', __( 'To remove every entry, use “Delete portfolio” in Account Settings.', 'bright-dreamers-dashboard' ), 400 );
+		}
+		// The parent / guardian confirmation is asked once before the child's profile is set up.
+		// (Admins viewing a parent's portfolio are not asked; the parent confirms for themselves.)
+		if ( ! bdd_is_admin_user() && ! bdd_guardian_consent( $user_id ) && bdd_profile_text_changed( $state, $old ) ) {
+			return self::error( 'bdd_consent_required', __( 'Please confirm that you are this child’s parent or legal guardian on the Profile page first.', 'bright-dreamers-dashboard' ), 403 );
 		}
 		bdd_save_state( $user_id, $state );
 		return rest_ensure_response( array( 'saved' => true ) );
 	}
 
 	/**
-	 * "Clear all entries" (Account Settings → Start over). Removes the entries, exactly as before:
-	 * the child's profile and the parent's settings are kept. Requires confirm_delete = 1.
+	 * Parent / guardian confirmation, asked once (Profile page, for accounts that have not confirmed yet).
+	 * Always recorded for the logged-in parent themselves, never for another account.
+	 */
+	public static function consent( WP_REST_Request $req ) {
+		if ( ! filter_var( $req->get_param( 'consent_guardian' ), FILTER_VALIDATE_BOOLEAN ) ) {
+			return self::error( 'bdd_consent_required', __( 'Please confirm this statement to continue.', 'bright-dreamers-dashboard' ), 400 );
+		}
+		$user_id = get_current_user_id();
+		if ( ! bdd_guardian_consent( $user_id ) ) {
+			bdd_record_guardian_consent( $user_id );
+		}
+		return rest_ensure_response( array( 'consent' => bdd_guardian_consent( $user_id ) ) );
+	}
+
+	/**
+	 * "Delete portfolio" (Account Settings → Start over): deletes the entries, the child's profile and the private photo files.
+	 * The parent account, settings and the guardian confirmation record are kept. Requires confirm_delete = 1.
 	 * The REST nonce (X-WP-Nonce) check still applies to this route like every other.
 	 */
 	public static function clear_entries( WP_REST_Request $req ) {
@@ -81,18 +102,28 @@ class BDD_Rest {
 		$old     = bdd_get_state( $user_id );
 		$old     = is_array( $old ) ? $old : array();
 		$removed = isset( $old['entries'] ) && is_array( $old['entries'] ) ? count( $old['entries'] ) : 0;
+
+		// 1. Private photo files first. If any file cannot be removed, stop and report it:
+		//    nothing is shown as deleted, so the parent can try again.
+		$files = bdd_delete_private_files( $user_id );
+		if ( is_wp_error( $files ) ) {
+			return self::error( 'bdd_delete_files', __( 'Some private files could not be deleted. Nothing else was changed. Please try again, or contact us if this keeps happening.', 'bright-dreamers-dashboard' ), 500 );
+		}
+
+		// 2. Portfolio data: every entry, the child's profile and the share history.
+		//    Kept: the parent's account, settings, the guardian confirmation record and this deletion record (no content).
 		bdd_save_state(
 			$user_id,
 			array(
 				'demo'    => false,
-				'profile' => isset( $old['profile'] ) && is_array( $old['profile'] ) ? $old['profile'] : array(),
+				'profile' => array( 'name' => '', 'age' => '', 'location' => '', 'interests' => '', 'about' => '', 'dream' => '', 'quote' => '', 'photo' => 'k:profile' ),
 				'parent'  => isset( $old['parent'] ) && is_array( $old['parent'] ) ? $old['parent'] : array(),
 				'shares'  => array(),
 				'read'    => array(),
 				'entries' => array(),
 			)
 		);
-		bdd_log_portfolio_clear( $user_id, get_current_user_id(), $removed );
+		bdd_log_portfolio_clear( $user_id, get_current_user_id(), $removed, $files );
 		return rest_ensure_response( array( 'cleared' => true, 'state' => bdd_get_state( $user_id ) ) );
 	}
 
@@ -180,7 +211,7 @@ class BDD_Rest {
 				return $state;
 			}
 			if ( bdd_is_bulk_clear( $state, $old_state ) ) {
-				return self::error( 'bdd_use_clear', __( 'To remove every entry, use “Clear all entries” in Account Settings.', 'bright-dreamers-dashboard' ), 400 );
+				return self::error( 'bdd_use_clear', __( 'To remove every entry, use “Delete portfolio” in Account Settings.', 'bright-dreamers-dashboard' ), 400 );
 			}
 			bdd_save_state( $user->ID, $state );
 		}
@@ -310,6 +341,10 @@ class BDD_Rest {
 		if ( strlen( $password ) < 6 ) {
 			return self::error( 'bdd_password', __( 'Password must be at least 6 characters.', 'bright-dreamers-dashboard' ) );
 		}
+		// Parent / guardian confirmation: required once, when the child's portfolio is first created.
+		if ( ! filter_var( $req->get_param( 'consent_guardian' ), FILTER_VALIDATE_BOOLEAN ) ) {
+			return self::error( 'bdd_consent_required', __( 'Please confirm this statement to continue.', 'bright-dreamers-dashboard' ), 403 );
+		}
 
 		$base = sanitize_user( strstr( $email, '@', true ), true );
 		$base = $base ? $base : 'parent';
@@ -346,6 +381,7 @@ class BDD_Rest {
 			)
 		);
 
+		bdd_record_guardian_consent( $user_id );
 		wp_new_user_notification( $user_id, null, 'admin' );
 		wp_set_current_user( $user_id );
 		wp_set_auth_cookie( $user_id, true, is_ssl() );
