@@ -1,7 +1,7 @@
 === Bright Dreamers Parent Dashboard ===
 Requires at least: 5.8
 Requires PHP: 7.4
-Stable tag: 1.8.4
+Stable tag: 1.8.5
 License: GPLv2 or later
 
 Parent dashboard for Bright Dreamers: a child's portfolio with entries, projects, goals, skills, a journey timeline, a printable book and email sharing.
@@ -27,6 +27,9 @@ Parent dashboard for Bright Dreamers: a child's portfolio with entries, projects
 * Deleting the plugin removes its settings only. Parent accounts, portfolios and photos are kept.
 
 == Changelog ==
+= 1.8.5 =
+* Email Share: new helper text, a privacy notice above Send, updated confirmation checkbox text (Send stays disabled until ticked; server still requires confirm_share = 1), new default message ending "Shared from Bright Dreamers", Share history shown as a table (Date, Recipient(s), Subject, Status, Use again), and a paper-plane Email Share icon. No public URLs or file links are added to emails.
+
 = 1.8.4 =
 * Brought back the Bright Dreamers logo at the top of the dashboard sidebar (undoes 1.8.3).
 
