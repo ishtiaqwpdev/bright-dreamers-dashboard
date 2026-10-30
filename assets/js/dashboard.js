@@ -226,6 +226,7 @@ function render(){
  document.getElementById('pageTitle').textContent=(VIEW==='add'&&EDIT)?'Edit Entry':TITLES[VIEW];
  renderBanner();renderTop();
  document.getElementById('view').innerHTML=VIEWS[VIEW]();
+ var pfo=document.getElementById('pfoot');if(pfo&&!pfo.innerHTML)pfo.innerHTML=footHtml();
  if(VIEW==='email')updateSendState();
  if(VIEW==='add')bindAdd();
 }
@@ -700,22 +701,32 @@ function vEmail(){
 }
 
 /* ---------- Account ---------- */
+function linkUrl(k){var L=BD.footerLinks||[];for(var i=0;i<L.length;i++)if(L[i].key===k)return L[i].url;return k==='privacy'?(BD.privacyUrl||''):'';}
+function footHtml(){var L=BD.footerLinks||[];if(!L.length)return '';return '<nav class="pfoot__links" aria-label="Bright Dreamers policies">'+L.map(function(l){return '<a href="'+esc(l.url)+'" target="_blank" rel="noopener">'+esc(l.label)+'</a>';}).join('<span class="pfoot__sep" aria-hidden="true">|</span>')+'</nav><span class="pfoot__copy">© '+new Date().getFullYear()+' Bright Dreamers. All rights reserved.</span>';}
+function delConfirmHtml(){return '<div class="confirm">Delete this child’s portfolio data and private files?<div class="consent del-confirm"><label class="sw" for="del-confirm"><input type="checkbox" id="del-confirm" aria-required="true" aria-describedby="delConfirmErr"><span>I understand this will permanently delete this child’s portfolio data and associated private files, subject to any legally required retention.</span></label><span class="err consent__note" id="delConfirmErr" role="alert" hidden>Please confirm this statement before deleting.</span></div><button class="btn btn--sm btn--danger-solid" data-act="reset-yes" id="delYes" disabled>Delete Portfolio Data</button><button class="btn btn--ghost btn--sm" data-act="reset-no">Cancel</button></div>';}
+function privacyDataCard(a){var pp=linkUrl('privacy');
+ return '<section class="card panel privacy-data" id="privacyData" aria-labelledby="pdTitle"><h3 id="pdTitle">Privacy &amp; Data</h3>'+
+ '<p class="muted" id="privacyNote" style="margin:0">Your child’s portfolio is private by default. Sharing only happens when you choose to use a sharing feature.</p>'+
+ '<div class="pd-switches">'+
+ '<label class="sw" style="cursor:default"><input type="checkbox" id="ac-private" checked disabled aria-describedby="privacyNote"><span>My child’s portfolio is private by default</span></label>'+
+ '<label class="sw"><input type="checkbox" id="ac-share"'+(a.share!==false?' checked':'')+'><span>Allow me to share portfolio copies by email</span></label>'+
+ '<label class="sw"><input type="checkbox" id="ac-cover"'+(a.coverPhoto!==false?' checked':'')+'><span>Show my child’s photo on the private portfolio cover</span></label></div>'+
+ '<p class="share-notice">'+I_LOCK+'<span>Photos and files you upload stay private in your child’s portfolio. Uploading does not give Bright Dreamers permission to use or publish them. Photo &amp; Media Consent is a separate permission.</span></p>'+
+ '<div class="pd-links">'+(pp?'<a class="link" href="'+esc(pp)+'" target="_blank" rel="noopener">Privacy Policy</a>':'')+'<a class="link" href="#email">Manage Sharing Preferences</a></div>'+
+ '<div class="form__foot pd-actions"><button type="button" class="btn btn--sm" data-act="priv-save">Save privacy choices</button>'+(BD.exportUrl?'<a class="btn btn--line btn--sm" href="'+esc(BD.exportUrl)+'" download>Download My Data</a>':'')+(S.confirmReset==='clear'?'':'<button type="button" class="btn btn--danger btn--sm" data-act="reset" data-v="clear">Delete My Child’s Portfolio</button>')+'</div>'+
+ (S.confirmReset==='clear'?delConfirmHtml():'')+'</section>';}
 function vAccount(){
  if(BD.actingFor)return head('settings','Account Settings','This account belongs to '+esc(BD.actingFor.name)+'.','')+'<section class="card panel"><p class="muted" style="margin:0">You are viewing this portfolio as an admin. Parents change their own name, email, password and privacy choices. You can also edit the account in WordPress under Users.</p>'+(BD.adminUrl?'<div><a class="btn btn--line btn--sm" href="'+esc(BD.adminUrl)+'">Open parent accounts</a></div>':'')+'</section>';
  var a=S.parent;
  return head('settings','Account Settings','Your details, privacy choices and backups.','')+
  '<form class="card form" id="accForm" novalidate><div class="fgrid"><label class="field"><span>Parent name</span><input class="input" id="ac-name" value="'+esc(a.name)+'"></label><label class="field"><span>Email</span><input class="input" id="ac-email" type="email" value="'+esc(a.email)+'"></label><label class="field"><span>New password <small>(leave empty to keep the current one)</small></span><input class="input" id="ac-pw" type="password" autocomplete="new-password"></label></div>'+
- '<p class="muted" id="privacyNote" style="margin:0">Your child’s portfolio is private by default. Sharing only happens when you choose to use a sharing feature.</p>'+
- '<fieldset style="border:1.5px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:10px;margin:0"><legend style="font-weight:600;padding:0 6px">Privacy</legend>'+
- '<label class="sw" style="cursor:default"><input type="checkbox" id="ac-private" checked disabled aria-describedby="privacyNote"><span>My child’s portfolio is private by default</span></label>'+
- '<label class="sw"><input type="checkbox" id="ac-share"'+(a.share!==false?' checked':'')+'><span>Allow me to share portfolio copies by email</span></label>'+
- '<label class="sw"><input type="checkbox" id="ac-cover"'+(a.coverPhoto!==false?' checked':'')+'><span>Show my child\u2019s photo on the private portfolio cover</span></label></fieldset>'+
- consentBlock()+
+  consentBlock()+
  '<div class="form__foot"><button class="btn" type="submit">Save Settings</button></div></form>'+
+ privacyDataCard(a)+
  '<section class="card panel"><h3>Backup</h3><p class="muted" style="margin:0">Entries are saved to your account on this website. Copy a backup to keep an extra copy or move it to another account.</p><textarea class="input code" id="backup" readonly aria-label="Backup data"></textarea><div class="form__foot" style="justify-content:flex-start"><button class="btn btn--line btn--sm" data-act="bk-make">Create backup</button><button class="btn btn--line btn--sm" data-act="bk-copy">Copy backup</button><label class="btn btn--ghost btn--sm">Restore from file<input type="file" id="bk-file" accept=".json,application/json,text/plain" hidden></label></div>'+
  '<label class="field"><span>Or paste a backup and restore</span><textarea class="input code" id="restore" style="min-height:90px" placeholder="Paste backup text here"></textarea></label><div><button class="btn btn--ghost btn--sm" data-act="bk-restore">Restore pasted backup</button></div></section>'+
  '<section class="card panel"><h3>Start over</h3><p class="muted" style="margin:0">'+(S.demo?'The dashboard is showing example data for Maya.':'Your own data is saved to your account.')+'</p>'+
- (S.confirmReset?'<div class="confirm">'+(S.confirmReset==='clear'?'Delete this child\u2019s portfolio data and private files?':'Replace everything with the Maya example data?')+(S.confirmReset==='clear'?'<div class="consent del-confirm"><label class="sw" for="del-confirm"><input type="checkbox" id="del-confirm" aria-required="true" aria-describedby="delConfirmErr"><span>I understand this will permanently delete this child\u2019s portfolio data and associated private files, subject to any legally required retention.</span></label><span class="err consent__note" id="delConfirmErr" role="alert" hidden>Please confirm this statement before deleting.</span></div>':'')+'<button class="btn btn--sm'+(S.confirmReset==='clear'?' btn--danger-solid':'')+'" data-act="reset-yes"'+(S.confirmReset==='clear'?' id="delYes" disabled':'')+'>'+(S.confirmReset==='clear'?'Delete Portfolio Data':'Yes, continue')+'</button><button class="btn btn--ghost btn--sm" data-act="reset-no">Cancel</button></div>':'<div class="form__foot" style="justify-content:flex-start"><button class="btn btn--danger btn--sm" data-act="reset" data-v="clear">Delete portfolio</button><button class="btn btn--ghost btn--sm" data-act="reset" data-v="demo">Load example data</button></div>')+'</section>'+
+ (S.confirmReset==='demo'?'<div class="confirm">'+(S.confirmReset==='clear'?'Delete this child\u2019s portfolio data and private files?':'Replace everything with the Maya example data?')+(S.confirmReset==='clear'?'<div class="consent del-confirm"><label class="sw" for="del-confirm"><input type="checkbox" id="del-confirm" aria-required="true" aria-describedby="delConfirmErr"><span>I understand this will permanently delete this child\u2019s portfolio data and associated private files, subject to any legally required retention.</span></label><span class="err consent__note" id="delConfirmErr" role="alert" hidden>Please confirm this statement before deleting.</span></div>':'')+'<button class="btn btn--sm'+(S.confirmReset==='clear'?' btn--danger-solid':'')+'" data-act="reset-yes"'+(S.confirmReset==='clear'?' id="delYes" disabled':'')+'>'+(S.confirmReset==='clear'?'Delete Portfolio Data':'Yes, continue')+'</button><button class="btn btn--ghost btn--sm" data-act="reset-no">Cancel</button></div>':'<div class="form__foot" style="justify-content:flex-start"><button class="btn btn--ghost btn--sm" data-act="reset" data-v="demo">Load example data</button></div>')+'</section>'+
  (memoryOnly?'<p class="note">This browser is blocking storage, so changes will be lost when the page closes.</p>':'');
 }
 
@@ -745,7 +756,7 @@ function vAuth(){
    consentAsk('su')+
    '<button class="btn" type="submit">Create Account</button>'+
   '</form>')+
- '</div></div>';
+ '</div><footer class="pfoot pfoot--auth">'+footHtml()+'</footer></div>';
 }
 function authError(m){var e=document.getElementById('authErr');e.textContent=m;e.hidden=!m;}
 function showAuth(){document.getElementById('app').hidden=true;var a=document.getElementById('auth');a.hidden=false;a.innerHTML=vAuth();closePops();window.scrollTo(0,0);}
@@ -815,6 +826,7 @@ document.addEventListener('click',function(ev){
   case 'bk-make':document.getElementById('backup').value=JSON.stringify(S);toast('Backup created');break;
   case 'bk-copy':var b=document.getElementById('backup');if(!b.value)b.value=JSON.stringify(S);copy(b.value,b,'Backup copied');break;
   case 'bk-restore':restore(document.getElementById('restore').value);break;
+  case 'priv-save':var afm=document.getElementById('accForm');if(afm){if(afm.requestSubmit)afm.requestSubmit();else afm.dispatchEvent(new Event('submit',{cancelable:true,bubbles:true}));}break;
   case 'reset':S.confirmReset=t.getAttribute('data-v');render();break;
   case 'logout':closeNav();toast('Logging out\u2026');clearTimeout(saveT);(saveT===null&&!saving?Promise.resolve():api('state',statePayload()).catch(function(){})).then(function(){return api('logout',{});}).then(function(){location.hash='';location.reload();},function(){location.reload();});break;
   case 'auth-mode':authMode=t.getAttribute('data-v');showAuth();break;

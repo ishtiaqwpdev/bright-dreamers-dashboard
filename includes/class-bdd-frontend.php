@@ -14,6 +14,7 @@ class BDD_Frontend {
 		add_shortcode( BDD_SHORTCODE, array( __CLASS__, 'shortcode' ) );
 		add_action( 'init', array( __CLASS__, 'maybe_serve_photo' ), 1 );
 		add_action( 'init', array( __CLASS__, 'maybe_render_book' ), 20 );
+		add_action( 'init', array( __CLASS__, 'maybe_export_data' ), 20 );
 		add_filter( 'query_vars', array( __CLASS__, 'query_vars' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'maybe_render' ), 1 );
 		add_filter( 'show_admin_bar', array( __CLASS__, 'admin_bar' ) );
@@ -71,6 +72,35 @@ class BDD_Frontend {
 		$parent = isset( $_GET['bd_parent'] ) ? absint( wp_unslash( $_GET['bd_parent'] ) ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$paper  = ( isset( $_GET['paper'] ) && 'letter' === $_GET['paper'] ) ? 'letter' : 'a4'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		BDD_Book::render( bdd_target_user_id( $parent ), $paper );
+		exit;
+	}
+
+	/**
+	 * "Download My Data" (Account Settings → Privacy & Data): /?bd_export=1&_wpnonce=...
+	 * Only for the logged-in parent's own account. Never cached, never indexed.
+	 */
+	public static function maybe_export_data() {
+		if ( ! isset( $_GET['bd_export'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			return;
+		}
+		nocache_headers();
+		header( 'X-Robots-Tag: noindex, nofollow, noarchive' );
+		$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( ! is_user_logged_in() || ! wp_verify_nonce( $nonce, 'bdd_export' ) ) {
+			status_header( 403 );
+			header( 'Content-Type: text/plain; charset=utf-8' );
+			echo 'This download link has expired. Please open Account Settings and try again.';
+			exit;
+		}
+		list( $path, $filename, $mime ) = bdd_build_data_export( get_current_user_id() );
+		status_header( 200 );
+		header( 'Content-Type: ' . $mime );
+		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+		header( 'Content-Length: ' . filesize( $path ) );
+		header( 'Cache-Control: private, no-store, max-age=0' );
+		header( 'X-Content-Type-Options: nosniff' );
+		readfile( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile
+		@unlink( $path ); // phpcs:ignore
 		exit;
 	}
 
@@ -156,6 +186,8 @@ class BDD_Frontend {
 			'consent'         => $logged_in ? bdd_guardian_consent( $user->ID ) : null,
 			'privacyUrl'      => function_exists( 'get_privacy_policy_url' ) ? get_privacy_policy_url() : '',
 			'bookUrl'         => $logged_in ? add_query_arg( array_filter( array( 'bd_book' => 1, 'bd_parent' => $acting ? $acting['id'] : 0 ) ), home_url( '/' ) ) : '',
+			'footerLinks'     => bdd_portal_footer_links(),
+			'exportUrl'       => ( $logged_in && ! $acting ) ? add_query_arg( array( 'bd_export' => 1, '_wpnonce' => wp_create_nonce( 'bdd_export' ) ), home_url( '/' ) ) : '',
 			'actingFor'   => $acting,
 			'adminUrl'    => $is_admin ? admin_url( 'users.php?role=' . BDD_ROLE ) : '',
 			'state'       => $state,

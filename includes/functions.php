@@ -716,3 +716,128 @@ function bdd_delete_private_files( $owner_id ) {
 	}
 	return $count;
 }
+
+/* ---------- Parent Portal footer (links to the existing public website pages) ---------- */
+
+/**
+ * Footer links for every Parent Portal page. URLs come from the website's own footer settings
+ * (Bright Dreamers Club theme), so if a page is changed there the portal follows automatically.
+ * Financial Transparency and the Photo & Media Consent Form are intentionally not included.
+ *
+ * @return array[] list of [ 'key', 'label', 'url' ].
+ */
+function bdd_portal_footer_links() {
+	$links = array(
+		'privacy'      => array( __( 'Privacy Policy', 'bright-dreamers-dashboard' ), home_url( '/privacy-policy/' ) ),
+		'terms'        => array( __( 'Terms of Use', 'bright-dreamers-dashboard' ), home_url( '/terms/' ) ),
+		'child_safety' => array( __( 'Child Safety & Safeguarding', 'bright-dreamers-dashboard' ), home_url( '/faq/' ) ),
+		'photo_policy' => array( __( 'Photo & Media Policy', 'bright-dreamers-dashboard' ), home_url( '/photo-media-policy/' ) ),
+		'contact'      => array( __( 'Contact Us', 'bright-dreamers-dashboard' ), home_url( '/contact/' ) ),
+	);
+	if ( function_exists( 'get_privacy_policy_url' ) && get_privacy_policy_url() ) {
+		$links['privacy'][1] = get_privacy_policy_url();
+	}
+	if ( function_exists( 'bdc_get_header_footer_settings' ) ) {
+		$s   = bdc_get_header_footer_settings();
+		$map = array(
+			'privacy'      => array( 'legal_links', 'privacy' ),
+			'terms'        => array( 'legal_links', 'terms' ),
+			'child_safety' => array( 'resources_links', 'child_safety' ),
+			'photo_policy' => array( 'resources_links', 'photo_policy' ),
+			'contact'      => array( 'explore_links', 'contact' ),
+		);
+		foreach ( $map as $key => $path ) {
+			$url = isset( $s[ $path[0] ][ $path[1] ]['url'] ) ? trim( (string) $s[ $path[0] ][ $path[1] ]['url'] ) : '';
+			if ( '' !== $url ) {
+				$links[ $key ][1] = $url;
+			}
+		}
+	}
+	$links = apply_filters( 'bdd_portal_footer_links', $links );
+	$out   = array();
+	foreach ( $links as $key => $link ) {
+		$url = esc_url_raw( (string) $link[1] );
+		if ( '' !== $url ) {
+			$out[] = array( 'key' => (string) $key, 'label' => (string) $link[0], 'url' => $url );
+		}
+	}
+	return $out;
+}
+
+/* ---------- Download My Data ---------- */
+
+/** A temporary file for downloads. wp_tempnam() lives in wp-admin/includes/file.php, which is not loaded on the front end. */
+function bdd_temp_file() {
+	if ( ! function_exists( 'wp_tempnam' ) && defined( 'ABSPATH' ) && file_exists( ABSPATH . 'wp-admin/includes/file.php' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+	}
+	if ( function_exists( 'wp_tempnam' ) ) {
+		return wp_tempnam( 'bdd-export' );
+	}
+	$dir = function_exists( 'get_temp_dir' ) ? get_temp_dir() : sys_get_temp_dir();
+	return tempnam( $dir, 'bdd-export' );
+}
+
+
+/**
+ * Build the "Download My Data" file for one parent account: a ZIP with the portfolio data,
+ * account settings, consent and share records, and the private photos. Falls back to a JSON
+ * file when the server has no ZipArchive. Returns [ path, filename, mime ] of a temp file.
+ */
+function bdd_build_data_export( $user_id ) {
+	$user_id = (int) $user_id;
+	$user    = get_userdata( $user_id );
+	$state   = bdd_get_state( $user_id );
+	$state   = is_array( $state ) ? $state : array();
+	$dir     = bdd_private_dir() . '/' . $user_id;
+	$photos  = array();
+	$files   = is_dir( $dir ) ? glob( $dir . '/*.{jpg,png,webp}', GLOB_BRACE ) : array();
+	foreach ( (array) $files as $file ) {
+		if ( is_file( $file ) ) {
+			$photos[ basename( $file ) ] = $file;
+		}
+	}
+	// Point photo links in the data at the files inside the download (no private URLs in the file).
+	$fix = function ( $value ) use ( &$fix, $user_id ) {
+		if ( is_array( $value ) ) {
+			return array_map( $fix, $value );
+		}
+		if ( is_string( $value ) && preg_match( '#[?&]bd_photo=' . $user_id . '(?:/|%2F)([a-f0-9]{32}\.(?:jpg|png|webp))#i', $value, $m ) ) {
+			return 'photos/' . $m[1];
+		}
+		return $value;
+	};
+	$json = (string) wp_json_encode( $fix( $state ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+
+	$account = array(
+		'exported_at'           => gmdate( 'c' ),
+		'parent_name'           => $user ? $user->display_name : '',
+		'parent_email'          => $user ? $user->user_email : '',
+		'portfolio_private'     => true,
+		'allow_email_share'     => bdd_allow_email_share( $user_id ),
+		'show_photo_on_cover'   => bdd_show_photo_on_cover( $user_id ),
+		'guardian_confirmation' => bdd_guardian_consent( $user_id ),
+		'email_share_log'       => array_values( (array) get_user_meta( $user_id, 'bdd_share_log', true ) ),
+		'deletion_log'          => array_values( (array) get_user_meta( $user_id, 'bdd_delete_log', true ) ),
+	);
+	$readme = "Bright Dreamers - My Data\n\nportfolio.json : your child's portfolio (profile, entries, goals, projects, achievements, skills)\naccount.json   : your account details, privacy settings, guardian confirmation, Email Share and deletion records\nphotos/        : the private photos from your child's portfolio\n\nThis file was downloaded from your private Parent Portal on " . gmdate( 'Y-m-d' ) . " (UTC).\n";
+	$date   = gmdate( 'Y-m-d' );
+
+	if ( class_exists( 'ZipArchive' ) ) {
+		$tmp = bdd_temp_file();
+		$zip = new ZipArchive();
+		if ( true === $zip->open( $tmp, ZipArchive::OVERWRITE ) ) {
+			$zip->addFromString( 'README.txt', $readme );
+			$zip->addFromString( 'portfolio.json', $json );
+			$zip->addFromString( 'account.json', wp_json_encode( $account, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) );
+			foreach ( $photos as $name => $file ) {
+				$zip->addFile( $file, 'photos/' . $name );
+			}
+			$zip->close();
+			return array( $tmp, 'bright-dreamers-my-data-' . $date . '.zip', 'application/zip' );
+		}
+	}
+	$tmp = bdd_temp_file();
+	file_put_contents( $tmp, wp_json_encode( array( 'readme' => $readme, 'account' => $account, 'portfolio' => json_decode( $json, true ), 'photos_note' => 'Photos are not included in this file. Please contact us for a copy.' ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) ); // phpcs:ignore
+	return array( $tmp, 'bright-dreamers-my-data-' . $date . '.json', 'application/json' );
+}

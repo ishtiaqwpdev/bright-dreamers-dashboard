@@ -49,6 +49,7 @@ $bdd_icon    = get_site_icon_url( 64 );
       </div>
       <section class="banner" id="banner"></section>
       <div id="view" class="view"></div>
+      <footer class="pfoot" id="pfoot"></footer>
     </div>
   </main>
 </div>

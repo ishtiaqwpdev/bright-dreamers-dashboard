@@ -1,7 +1,7 @@
 === Bright Dreamers Parent Dashboard ===
 Requires at least: 5.8
 Requires PHP: 7.4
-Stable tag: 1.9.1
+Stable tag: 1.10.0
 License: GPLv2 or later
 
 Parent dashboard for Bright Dreamers: a child's portfolio with entries, projects, goals, skills, a journey timeline, a printable book and email sharing.
@@ -27,6 +27,10 @@ Parent dashboard for Bright Dreamers: a child's portfolio with entries, projects
 * Deleting the plugin removes its settings only. Parent accounts, portfolios and photos are kept.
 
 == Changelog ==
+= 1.10.0 =
+* Small footer on every Parent Portal page (and the login screen): Privacy Policy, Terms of Use, Child Safety & Safeguarding, Photo & Media Policy, Contact Us. Links open the existing website pages in a new tab and follow the website footer settings. Financial Transparency and the Photo & Media Consent Form are not included. Hidden on the printable book.
+* Account Settings: new "Privacy & Data" section with the privacy text, the three privacy choices, a note that uploads are not permission to publish (Photo & Media Consent is separate), Privacy Policy link, Manage Sharing Preferences, Download My Data (ZIP: portfolio.json, account.json and the private photos; only for the logged-in parent, nonce-protected, not cached) and Delete My Child's Portfolio. "Start over" keeps only Load example data.
+
 = 1.9.1 =
 * Entry photos: empty white or transparent bands around a photo (for example a white strip above the picture) are trimmed automatically on upload, so the photo fills the round and square frames. Normal photos are not changed. Photos uploaded before this version need to be uploaded again to be trimmed.
 
