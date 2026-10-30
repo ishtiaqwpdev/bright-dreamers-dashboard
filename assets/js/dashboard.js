@@ -555,7 +555,21 @@ function addFiles(files){
  toast('Uploading photo'+(list.length>1?'s':'')+'\u2026');Promise.all(list.map(function(f){return shrink(f).then(upload);})).then(function(urls){var n=0;urls.forEach(function(u){if(u){DRAFT.photos.push(u);n++;}});if(VIEW==='add')rerenderAdd();if(n)toast(n===1?'Photo added':n+' photos added');});
 }
 function upload(dataUrl){if(!dataUrl)return null;return api('upload',BD.actingFor?{image:dataUrl,parent:BD.actingFor.id}:{image:dataUrl}).then(function(j){return j.url;},function(e){toast(e.message);return null;});}
-function shrink(file){return new Promise(function(res){var r=new FileReader();r.onload=function(){var im=new Image();im.onload=function(){var m=1600,w=im.width,h=im.height,k=Math.min(1,m/Math.max(w,h));var c=document.createElement('canvas');c.width=Math.round(w*k);c.height=Math.round(h*k);var x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.86));};im.onerror=function(){res(null);};im.src=r.result;};r.onerror=function(){res(null);};r.readAsDataURL(file);});}
+/* Trim empty white / transparent bands around a photo (e.g. a strip above the picture),
+   so it fills round and square frames. Normal photos are left as they are. */
+function blankBounds(im){var W=im.naturalWidth||im.width,H=im.naturalHeight||im.height,full={x:0,y:0,w:W,h:H};
+ try{var s=Math.min(1,400/Math.max(W,H)),cw=Math.max(1,Math.round(W*s)),ch=Math.max(1,Math.round(H*s)),c=document.createElement('canvas');c.width=cw;c.height=ch;
+  var x=c.getContext('2d');x.drawImage(im,0,0,cw,ch);var d=x.getImageData(0,0,cw,ch).data;
+  var blank=function(i){return d[i+3]<24||(d[i]>242&&d[i+1]>242&&d[i+2]>242);};
+  var rowBlank=function(y){var n=0;for(var X=0;X<cw;X++)if(blank((y*cw+X)*4))n++;return n>=cw*0.985;};
+  var colBlank=function(X,y0,y1){var n=0,t=y1-y0+1;for(var y=y0;y<=y1;y++)if(blank((y*cw+X)*4))n++;return n>=t*0.985;};
+  var top=0,bot=ch-1,lef=0,rig=cw-1;while(top<bot&&rowBlank(top))top++;while(bot>top&&rowBlank(bot))bot--;
+  while(lef<rig&&colBlank(lef,top,bot))lef++;while(rig>lef&&colBlank(rig,top,bot))rig--;
+  if(!top&&!lef&&bot===ch-1&&rig===cw-1)return full;
+  var nw=(rig-lef+1)/cw,nh=(bot-top+1)/ch;if(nw<0.35||nh<0.35)return full;
+  var pad=1,X0=Math.max(0,(lef+(lef?pad:0))/s),Y0=Math.max(0,(top+(top?pad:0))/s),X1=Math.min(W,(rig+1-(rig<cw-1?pad:0))/s),Y1=Math.min(H,(bot+1-(bot<ch-1?pad:0))/s);
+  return {x:Math.round(X0),y:Math.round(Y0),w:Math.max(1,Math.round(X1-X0)),h:Math.max(1,Math.round(Y1-Y0))};}catch(e){return full;}}
+function shrink(file){return new Promise(function(res){var r=new FileReader();r.onload=function(){var im=new Image();im.onload=function(){var b=blankBounds(im),m=1600,w=b.w,h=b.h,k=Math.min(1,m/Math.max(w,h));var c=document.createElement('canvas');c.width=Math.round(w*k);c.height=Math.round(h*k);var x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,b.x,b.y,b.w,b.h,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.86));};im.onerror=function(){res(null);};im.src=r.result;};r.onerror=function(){res(null);};r.readAsDataURL(file);});}
 function submitEntry(){
  readForm();var d=DRAFT,ok=true;
  var show=function(id,bad){var e=document.getElementById('e-'+id),f=document.getElementById('f-'+(id==='desc'?'desc':id));if(e)e.hidden=!bad;if(f)f.classList.toggle('is-bad',bad);if(bad&&ok){f&&f.focus();ok=false;}};

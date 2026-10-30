@@ -1,7 +1,7 @@
 === Bright Dreamers Parent Dashboard ===
 Requires at least: 5.8
 Requires PHP: 7.4
-Stable tag: 1.9.0
+Stable tag: 1.9.1
 License: GPLv2 or later
 
 Parent dashboard for Bright Dreamers: a child's portfolio with entries, projects, goals, skills, a journey timeline, a printable book and email sharing.
@@ -27,6 +27,9 @@ Parent dashboard for Bright Dreamers: a child's portfolio with entries, projects
 * Deleting the plugin removes its settings only. Parent accounts, portfolios and photos are kept.
 
 == Changelog ==
+= 1.9.1 =
+* Entry photos: empty white or transparent bands around a photo (for example a white strip above the picture) are trimmed automatically on upload, so the photo fills the round and square frames. Normal photos are not changed. Photos uploaded before this version need to be uploaded again to be trimmed.
+
 = 1.9.0 =
 * Parent / guardian confirmation (new text: "...to create and manage this private portfolio.", version v2) is now asked once on Create Account (required by the server). Older accounts that have not confirmed are asked once on the Profile page (or Account Settings). Earlier v1 confirmations stay valid.
 * Upload helper text under every photo upload: "Upload only photos, certificates, or files you are authorized to provide."
