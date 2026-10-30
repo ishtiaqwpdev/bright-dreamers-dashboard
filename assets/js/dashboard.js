@@ -227,6 +227,7 @@ function render(){
  renderBanner();renderTop();
  document.getElementById('view').innerHTML=VIEWS[VIEW]();
  var pfo=document.getElementById('pfoot');if(pfo&&!pfo.innerHTML)pfo.innerHTML=footHtml();
+ if(VIEW==='account'&&S.confirmReset==='clear'){var dcf=document.getElementById('del-confirm');if(dcf)dcf.focus();}
  if(VIEW==='email')updateSendState();
  if(VIEW==='add')bindAdd();
 }
@@ -703,30 +704,56 @@ function vEmail(){
 /* ---------- Account ---------- */
 function linkUrl(k){var L=BD.footerLinks||[];for(var i=0;i<L.length;i++)if(L[i].key===k)return L[i].url;return k==='privacy'?(BD.privacyUrl||''):'';}
 function footHtml(){var L=BD.footerLinks||[];if(!L.length)return '';return '<nav class="pfoot__links" aria-label="Bright Dreamers policies">'+L.map(function(l){return '<a href="'+esc(l.url)+'" target="_blank" rel="noopener">'+esc(l.label)+'</a>';}).join('<span class="pfoot__sep" aria-hidden="true">|</span>')+'</nav><span class="pfoot__copy">© '+new Date().getFullYear()+' Bright Dreamers. All rights reserved.</span>';}
-function delConfirmHtml(){return '<div class="confirm">Delete this child’s portfolio data and private files?<div class="consent del-confirm"><label class="sw" for="del-confirm"><input type="checkbox" id="del-confirm" aria-required="true" aria-describedby="delConfirmErr"><span>I understand this will permanently delete this child’s portfolio data and associated private files, subject to any legally required retention.</span></label><span class="err consent__note" id="delConfirmErr" role="alert" hidden>Please confirm this statement before deleting.</span></div><button class="btn btn--sm btn--danger-solid" data-act="reset-yes" id="delYes" disabled>Delete Portfolio Data</button><button class="btn btn--ghost btn--sm" data-act="reset-no">Cancel</button></div>';}
+var ICO={
+ user:'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>',
+ shield:'<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.4 8.3 8 9 4.6-.7 8-4 8-9V6z"/><path d="M12 15.5s-3.2-1.9-3.2-4.1a1.8 1.8 0 0 1 3.2-1.1 1.8 1.8 0 0 1 3.2 1.1c0 2.2-3.2 4.1-3.2 4.1z"/></svg>',
+ lock:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/><circle cx="12" cy="16" r="1.2"/></svg>',
+ plane:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.5 2.5 10.6 13.4"/><path d="M21.5 2.5 14.6 21l-4-7.6-7.6-4z"/></svg>',
+ image:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg>',
+ download:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
+ trash:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>',
+ people:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M15 14.5c3 0 6 1.8 6 5"/></svg>',
+ info:'<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="currentColor"/><path d="M12 11v6M12 7.5v.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>',
+ ext:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
+ chev:'<svg class="pd-opt__chev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>'
+};
+function cardHead(icon,title,sub,id){return '<div class="card-head"><span class="card-head__icon">'+icon+'</span><div><h3'+(id?' id="'+id+'"':'')+'>'+title+'</h3><p class="muted">'+sub+'</p></div></div>';}
+function toggleRow(id,icon,title,desc,on,locked,cls){return '<label class="pd-row'+(locked?' pd-row--locked':'')+'" for="'+id+'"><span class="pd-row__icon '+cls+'">'+icon+'</span><span class="pd-row__text"><strong>'+title+'</strong><small id="'+id+'-d">'+desc+'</small></span><input type="checkbox" role="switch" class="switch" id="'+id+'"'+(on?' checked':'')+(locked?' disabled':'')+' aria-describedby="'+id+'-d'+(id==='ac-private'?' privacyNote':'')+'"></label>';}
+function optRow(tag,attrs,icon,title,desc,cls){return '<'+tag+' class="pd-opt'+(cls==='pink'?' pd-opt--danger':'')+'" '+attrs+'><span class="pd-row__icon '+cls+'">'+icon+'</span><span class="pd-row__text"><strong>'+title+'</strong><small>'+desc+'</small></span>'+ICO.chev+'</'+tag+'>';}
+function accountCard(a){
+ return '<form class="card form acc-card" id="accForm" novalidate>'+cardHead(ICO.user,'Account Information','Your details for your account.','accTitle')+
+ '<div class="fgrid"><label class="field"><span>Parent name</span><input class="input" id="ac-name" autocomplete="name" value="'+esc(a.name)+'"></label><label class="field"><span>Email</span><input class="input" id="ac-email" type="email" autocomplete="email" value="'+esc(a.email)+'" data-orig="'+esc(a.email)+'"></label></div>'+
+ '<div class="pw-area"><div class="pw-area__top"><span class="pw-area__label">Password</span><button type="button" class="btn btn--line btn--sm" id="pwOpen" data-act="pw-open" aria-expanded="false" aria-controls="pwFields">Change password</button></div>'+
+ '<div class="fgrid" id="pwFields" hidden><label class="field"><span>New password <small>(at least 6 characters)</small></span><input class="input" id="ac-pw" type="password" autocomplete="new-password"></label><label class="field"><span>Confirm new password</span><input class="input" id="ac-pw2" type="password" autocomplete="new-password"></label><div class="field--full"><button type="button" class="link" data-act="pw-close">Cancel password change</button></div></div>'+
+ '<label class="field" id="acCurWrap" hidden><span>Current password <small>(needed to change your password or email)</small></span><input class="input" id="ac-cur" type="password" autocomplete="current-password" aria-describedby="acCurErr"><span class="err" id="acCurErr" role="alert" hidden></span></label></div>'+
+ consentBlock()+
+ '<div class="form__foot"><button class="btn" type="submit">Save Settings</button></div></form>';
+}
 function privacyDataCard(a){var pp=linkUrl('privacy');
- return '<section class="card panel privacy-data" id="privacyData" aria-labelledby="pdTitle"><h3 id="pdTitle">Privacy &amp; Data</h3>'+
- '<p class="muted" id="privacyNote" style="margin:0">Your child’s portfolio is private by default. Sharing only happens when you choose to use a sharing feature.</p>'+
- '<div class="pd-switches">'+
- '<label class="sw" style="cursor:default"><input type="checkbox" id="ac-private" checked disabled aria-describedby="privacyNote"><span>My child’s portfolio is private by default</span></label>'+
- '<label class="sw"><input type="checkbox" id="ac-share"'+(a.share!==false?' checked':'')+'><span>Allow me to share portfolio copies by email</span></label>'+
- '<label class="sw"><input type="checkbox" id="ac-cover"'+(a.coverPhoto!==false?' checked':'')+'><span>Show my child’s photo on the private portfolio cover</span></label></div>'+
- '<p class="share-notice">'+I_LOCK+'<span>Photos and files you upload stay private in your child’s portfolio. Uploading does not give Bright Dreamers permission to use or publish them. Photo &amp; Media Consent is a separate permission.</span></p>'+
- '<div class="pd-links">'+(pp?'<a class="link" href="'+esc(pp)+'" target="_blank" rel="noopener">Privacy Policy</a>':'')+'<a class="link" href="#email">Manage Sharing Preferences</a></div>'+
- '<div class="form__foot pd-actions"><button type="button" class="btn btn--sm" data-act="priv-save">Save privacy choices</button>'+(BD.exportUrl?'<a class="btn btn--line btn--sm" href="'+esc(BD.exportUrl)+'" download>Download My Data</a>':'')+(S.confirmReset==='clear'?'':'<button type="button" class="btn btn--danger btn--sm" data-act="reset" data-v="clear">Delete My Child’s Portfolio</button>')+'</div>'+
- (S.confirmReset==='clear'?delConfirmHtml():'')+'</section>';}
+ return '<section class="card pd" id="privacyData" aria-labelledby="pdTitle"><div class="pd__head"><span class="card-head__icon pd__icon">'+ICO.shield+'</span><div><h3 id="pdTitle">Privacy &amp; Data</h3><p id="privacyNote">Your child’s portfolio is private by default. Sharing only happens when you choose to use a sharing feature.</p></div></div>'+
+ '<div class="pd__grid"><div class="pd__col"><h4>Privacy Settings</h4><p class="muted">These settings help you control how your child’s portfolio is used and shared.</p>'+
+ toggleRow('ac-private',ICO.lock,'My child’s portfolio is private by default','Always on. Only you can view your child’s portfolio unless you choose to use a sharing feature.',true,true,'blue')+
+ toggleRow('ac-share',ICO.plane,'Allow me to share portfolio copies by email','Turns on Email Share so you can send a copy to people you trust. No public link is ever created.',a.share!==false,false,'blue')+
+ toggleRow('ac-cover',ICO.image,'Show my child’s photo on the private portfolio cover','When off, a neutral placeholder is shown. The original photo stays private either way.',a.coverPhoto!==false,false,'purple')+'</div>'+
+ '<div class="pd__col"><h4>Data Options</h4><p class="muted">Manage and access your data.</p>'+
+ (BD.exportUrl?optRow('a','href="'+esc(BD.exportUrl)+'" download',ICO.download,'Download My Data','Get a copy of your child’s portfolio data and files.','blue'):'')+
+ optRow('button','type="button" data-act="reset" data-v="clear" aria-haspopup="dialog"',ICO.trash,'Delete My Child’s Portfolio','Permanently delete your child’s portfolio data and associated private files.','pink')+
+ optRow('a','href="#email"',ICO.people,'Manage Sharing Preferences','View and manage how you have shared your child’s portfolio.','purple')+
+ '</div></div>'+
+ '<div class="pd__notice"><span class="pd__info">'+ICO.info+'</span><p>Private portfolio uploads are used only for the child’s private portfolio. Uploading a photo or file does not give Bright Dreamers permission to publicly use or publish that content.</p>'+(pp?'<a class="btn btn--line btn--sm pd__pp" href="'+esc(pp)+'" target="_blank" rel="noopener">Privacy Policy '+ICO.ext+'</a>':'')+'</div></section>';}
+function deleteDialog(){
+ return '<div class="modal" id="delModal"><div class="modal__card" role="dialog" aria-modal="true" aria-labelledby="delTitle" aria-describedby="delDesc"><h3 id="delTitle">Delete My Child’s Portfolio</h3>'+
+ '<p id="delDesc">This permanently deletes your child’s portfolio: the profile, every entry, goal, project, achievement and skill, the share history and the private photos. This cannot be undone. Your parent account stays open.</p>'+
+ '<div class="consent del-confirm"><label class="sw" for="del-confirm"><input type="checkbox" id="del-confirm" aria-required="true" aria-describedby="delConfirmErr"><span>I understand this will permanently delete this child’s portfolio data and associated private files, subject to any legally required retention.</span></label><span class="err consent__note" id="delConfirmErr" role="alert" hidden>Please confirm this statement before deleting.</span></div>'+
+ '<label class="field"><span>Enter your current password</span><input class="input" id="del-pw" type="password" autocomplete="current-password" aria-describedby="delPwErr"><span class="err" id="delPwErr" role="alert" hidden></span></label>'+
+ '<div class="form__foot"><button type="button" class="btn btn--ghost" data-act="reset-no">Cancel</button><button type="button" class="btn btn--danger-solid" data-act="reset-yes" id="delYes" disabled>Delete Portfolio Data</button></div></div></div>';}
+function updCur(){var e=document.getElementById('ac-email'),f=document.getElementById('pwFields'),w=document.getElementById('acCurWrap');if(!w)return;var need=(f&&!f.hidden)||(e&&e.value.trim().toLowerCase()!==String(e.getAttribute('data-orig')||'').trim().toLowerCase());w.hidden=!need;}
+function updDel(){var c=document.getElementById('del-confirm'),p=document.getElementById('del-pw'),b=document.getElementById('delYes');if(b)b.disabled=!(c&&c.checked&&p&&p.value);}
+function fieldErr(id,msg){var e=document.getElementById(id);if(!e)return;e.textContent=msg||'';e.hidden=!msg;}
 function vAccount(){
  if(BD.actingFor)return head('settings','Account Settings','This account belongs to '+esc(BD.actingFor.name)+'.','')+'<section class="card panel"><p class="muted" style="margin:0">You are viewing this portfolio as an admin. Parents change their own name, email, password and privacy choices. You can also edit the account in WordPress under Users.</p>'+(BD.adminUrl?'<div><a class="btn btn--line btn--sm" href="'+esc(BD.adminUrl)+'">Open parent accounts</a></div>':'')+'</section>';
  var a=S.parent;
- return head('settings','Account Settings','Your details, privacy choices and backups.','')+
- '<form class="card form" id="accForm" novalidate><div class="fgrid"><label class="field"><span>Parent name</span><input class="input" id="ac-name" value="'+esc(a.name)+'"></label><label class="field"><span>Email</span><input class="input" id="ac-email" type="email" value="'+esc(a.email)+'"></label><label class="field"><span>New password <small>(leave empty to keep the current one)</small></span><input class="input" id="ac-pw" type="password" autocomplete="new-password"></label></div>'+
-  consentBlock()+
- '<div class="form__foot"><button class="btn" type="submit">Save Settings</button></div></form>'+
- privacyDataCard(a)+
- '<section class="card panel"><h3>Backup</h3><p class="muted" style="margin:0">Entries are saved to your account on this website. Copy a backup to keep an extra copy or move it to another account.</p><textarea class="input code" id="backup" readonly aria-label="Backup data"></textarea><div class="form__foot" style="justify-content:flex-start"><button class="btn btn--line btn--sm" data-act="bk-make">Create backup</button><button class="btn btn--line btn--sm" data-act="bk-copy">Copy backup</button><label class="btn btn--ghost btn--sm">Restore from file<input type="file" id="bk-file" accept=".json,application/json,text/plain" hidden></label></div>'+
- '<label class="field"><span>Or paste a backup and restore</span><textarea class="input code" id="restore" style="min-height:90px" placeholder="Paste backup text here"></textarea></label><div><button class="btn btn--ghost btn--sm" data-act="bk-restore">Restore pasted backup</button></div></section>'+
- '<section class="card panel"><h3>Start over</h3><p class="muted" style="margin:0">'+(S.demo?'The dashboard is showing example data for Maya.':'Your own data is saved to your account.')+'</p>'+
- (S.confirmReset==='demo'?'<div class="confirm">'+(S.confirmReset==='clear'?'Delete this child\u2019s portfolio data and private files?':'Replace everything with the Maya example data?')+(S.confirmReset==='clear'?'<div class="consent del-confirm"><label class="sw" for="del-confirm"><input type="checkbox" id="del-confirm" aria-required="true" aria-describedby="delConfirmErr"><span>I understand this will permanently delete this child\u2019s portfolio data and associated private files, subject to any legally required retention.</span></label><span class="err consent__note" id="delConfirmErr" role="alert" hidden>Please confirm this statement before deleting.</span></div>':'')+'<button class="btn btn--sm'+(S.confirmReset==='clear'?' btn--danger-solid':'')+'" data-act="reset-yes"'+(S.confirmReset==='clear'?' id="delYes" disabled':'')+'>'+(S.confirmReset==='clear'?'Delete Portfolio Data':'Yes, continue')+'</button><button class="btn btn--ghost btn--sm" data-act="reset-no">Cancel</button></div>':'<div class="form__foot" style="justify-content:flex-start"><button class="btn btn--ghost btn--sm" data-act="reset" data-v="demo">Load example data</button></div>')+'</section>'+
+ return head('settings','Account Settings','Manage your account, privacy settings, and data.','')+accountCard(a)+privacyDataCard(a)+(S.confirmReset==='clear'?deleteDialog():'')+
  (memoryOnly?'<p class="note">This browser is blocking storage, so changes will be lost when the page closes.</p>':'');
 }
 
@@ -823,10 +850,8 @@ document.addEventListener('click',function(ev){
   case 'pf-adjust':adjustProfilePhoto();break;
   case 'em-reuse':var sh=(S.shares||[])[+t.getAttribute('data-i')];if(sh){var dd=S.emailDraft||{to:'',subject:'',body:emailText()};S.emailDraft={to:sh.to||'',subject:sh.subject||'',body:dd.body||emailText()};render();var tt=document.getElementById('em-to');if(tt){tt.focus();tt.scrollIntoView({block:'center'});}toast('Recipients and subject added. Review the message, then send or copy.');}break;
   case 'em-reset':S.emailDraft=null;save();render();break;
-  case 'bk-make':document.getElementById('backup').value=JSON.stringify(S);toast('Backup created');break;
-  case 'bk-copy':var b=document.getElementById('backup');if(!b.value)b.value=JSON.stringify(S);copy(b.value,b,'Backup copied');break;
-  case 'bk-restore':restore(document.getElementById('restore').value);break;
-  case 'priv-save':var afm=document.getElementById('accForm');if(afm){if(afm.requestSubmit)afm.requestSubmit();else afm.dispatchEvent(new Event('submit',{cancelable:true,bubbles:true}));}break;
+  case 'pw-open':var pf=document.getElementById('pwFields');if(pf){pf.hidden=false;t.hidden=true;t.setAttribute('aria-expanded','true');updCur();document.getElementById('ac-cur').focus();}break;
+  case 'pw-close':var pf2=document.getElementById('pwFields'),po=document.getElementById('pwOpen');if(pf2){pf2.hidden=true;document.getElementById('ac-pw').value='';document.getElementById('ac-pw2').value='';}if(po){po.hidden=false;po.setAttribute('aria-expanded','false');po.focus();}updCur();break;
   case 'reset':S.confirmReset=t.getAttribute('data-v');render();break;
   case 'logout':closeNav();toast('Logging out\u2026');clearTimeout(saveT);(saveT===null&&!saving?Promise.resolve():api('state',statePayload()).catch(function(){})).then(function(){return api('logout',{});}).then(function(){location.hash='';location.reload();},function(){location.reload();});break;
   case 'auth-mode':authMode=t.getAttribute('data-v');showAuth();break;
@@ -834,17 +859,20 @@ document.addEventListener('click',function(ev){
   case 'pw-toggle':var pi=document.getElementById(t.getAttribute('data-for')),sh=pi.type==='password';pi.type=sh?'text':'password';t.textContent=sh?'Hide':'Show';t.setAttribute('aria-label',sh?'Hide password':'Show password');break;
   case 'reset-no':S.confirmReset=null;render();break;
   case 'reset-yes':var mode=S.confirmReset;
-   if(mode==='clear'){var dc=document.getElementById('del-confirm');if(!dc||!dc.checked){delConfirmError(true);break;}delConfirmError(false);t.disabled=true;
-    clearTimeout(saveT);saveT=null;var cp={confirm_delete:1};if(BD.actingFor)cp.parent=BD.actingFor.id;
-    api('clear',cp).then(function(j){if(j&&j.state&&Array.isArray(j.state.entries))S=j.state;else{var keep={profile:S.profile,parent:S.parent};S=seed();S.entries=[];S.demo=false;S.profile={name:'',age:'',location:'',interests:'',about:'',dream:'',quote:'',photo:'k:profile'};S.parent=keep.parent;}syncUser();S.confirmReset=null;toast('Portfolio data deleted');go('dashboard');},function(e){var b=document.getElementById('delYes'),c2=document.getElementById('del-confirm');if(b)b.disabled=!(c2&&c2.checked);if(/confirm this statement/i.test(e.message||''))delConfirmError(true);toast(e.message);});
+   if(mode==='clear'){var dc=document.getElementById('del-confirm'),dp=document.getElementById('del-pw');if(!dc||!dc.checked){delConfirmError(true);break;}delConfirmError(false);if(!dp||!dp.value){fieldErr('delPwErr','Enter your current password to delete the portfolio.');if(dp)dp.focus();break;}fieldErr('delPwErr','');t.disabled=true;
+    clearTimeout(saveT);saveT=null;var cp={confirm_delete:1,current_password:dp.value};if(BD.actingFor)cp.parent=BD.actingFor.id;
+    api('clear',cp).then(function(j){if(j&&j.state&&Array.isArray(j.state.entries))S=j.state;else{var keep={profile:S.profile,parent:S.parent};S=seed();S.entries=[];S.demo=false;S.profile={name:'',age:'',location:'',interests:'',about:'',dream:'',quote:'',photo:'k:profile'};S.parent=keep.parent;}syncUser();S.confirmReset=null;toast('Portfolio data deleted');go('dashboard');},function(e){var m=e.message||'';if(/current password|Too many/i.test(m)){fieldErr('delPwErr',m);var p2=document.getElementById('del-pw');if(p2){p2.value='';p2.focus();}}else if(/confirm this statement/i.test(m))delConfirmError(true);else toast(m);updDel();});
     break;}
-   var kp=S.parent;S=seed();S.parent=kp;save();toast('Example data loaded');go('dashboard');break;
+   break;
  }
 });
+document.addEventListener('input',function(ev){var t=ev.target;if(t.id==='ac-email')updCur();if(t.id==='del-pw'){fieldErr('delPwErr','');updDel();}if(t.id==='ac-cur')fieldErr('acCurErr','');});
+document.addEventListener('keydown',function(ev){if(ev.key==='Escape'&&S&&S.confirmReset==='clear'&&VIEW==='account'){S.confirmReset=null;render();var b=document.querySelector('[data-act=reset][data-v=clear]');if(b)b.focus();}});
 document.addEventListener('change',function(ev){
  var t=ev.target;
  if(t.id==='su-consent'||t.id==='pf-consent'){if(t.checked)consentAskError(t.id.slice(0,2),false);}
- if(t.id==='del-confirm'){var dy=document.getElementById('delYes');if(dy)dy.disabled=!t.checked;if(t.checked)delConfirmError(false);}
+ if(t.id==='del-confirm'){if(t.checked)delConfirmError(false);updDel();}
+ if(t.id==='ac-share'||t.id==='ac-cover'){var pk=t.id==='ac-share'?'allow_email_share':'show_photo_on_cover',pb={};pb[pk]=t.checked?1:0;t.disabled=true;api('privacy',pb).then(function(j){BD.allowEmailShare=!!j.allow_email_share;BD.showCoverPhoto=!!j.show_photo_on_cover;S.parent.share=BD.allowEmailShare;S.parent.coverPhoto=BD.showCoverPhoto;t.disabled=false;renderNav(VIEW);renderTop();toast('Saved');},function(e){t.checked=!t.checked;t.disabled=false;toast(e.message);});}
  if(t.id==='em-confirm'){if(t.checked)confirmError(false);updateSendState();}
  if(t.id==='ac-consent'&&t.checked)consentError(false);
  if(t.id==='achSrc'){achSrc=t.value;updateAchGrid();}
@@ -857,19 +885,24 @@ document.addEventListener('change',function(ev){
    var orig;try{orig=toBitmap(im,0,1600).toDataURL('image/jpeg',.86);}catch(e){orig=null;}
    toast('Uploading photo\u2026');Promise.all([upload(out),orig?upload(orig):null]).then(function(r){if(!r[0])return;setProfilePhoto(r[0],r[1]||null,params);});
   });});}
- if(t.id==='bk-file'&&t.files[0]){var r=new FileReader();r.onload=function(){restore(r.result);};r.readAsText(t.files[0]);}
 });
 document.addEventListener('submit',function(ev){
  var f=ev.target;
  if(f.id==='profileForm'){ev.preventDefault();var pfSave=function(){['name','age','location','interests','about','dream','quote'].forEach(function(k){S.profile[k]=document.getElementById('pf-'+k).value.trim();});if(!S.profile.name)S.profile.name='My child';S.demo=false;save();toast('Profile saved');render();};
   if(!BD.consent&&!BD.actingFor){var pfc=document.getElementById('pf-consent');if(!pfc||!pfc.checked){consentAskError('pf',true);return;}consentAskError('pf',false);api('consent',{consent_guardian:1}).then(function(j){if(j&&j.consent)BD.consent=j.consent;pfSave();},function(e){toast(e.message);});return;}
   pfSave();}
- if(f.id==='accForm'){ev.preventDefault();var an=document.getElementById('ac-name').value.trim(),ae=document.getElementById('ac-email').value.trim(),np=document.getElementById('ac-pw').value;
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ae)){toast('Enter a valid email. You use it to log in.');return;}if(np&&np.length<6){toast('Password must be at least 6 characters.');return;}
+ if(f.id==='accForm'){ev.preventDefault();var an=document.getElementById('ac-name').value.trim(),aeEl=document.getElementById('ac-email'),ae=aeEl.value.trim(),pwf=document.getElementById('pwFields'),pwOn=pwf&&!pwf.hidden,np=pwOn?document.getElementById('ac-pw').value:'',np2=pwOn?document.getElementById('ac-pw2').value:'',cur=document.getElementById('ac-cur').value,emChanged=ae.toLowerCase()!==String(aeEl.getAttribute('data-orig')||'').trim().toLowerCase();
+  fieldErr('acCurErr','');
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ae)){toast('Enter a valid email. You use it to log in.');return;}
+  if(pwOn&&!np){toast('Enter a new password, or cancel the password change.');document.getElementById('ac-pw').focus();return;}
+  if(np&&np.length<6){toast('Password must be at least 6 characters.');return;}
+  if(np&&np!==np2){toast('The new passwords do not match.');document.getElementById('ac-pw2').focus();return;}
+  if((np||emChanged)&&!cur){updCur();fieldErr('acCurErr','Enter your current password to change your password or email.');document.getElementById('ac-cur').focus();return;}
   var needConsent=!BD.consent;if(needConsent){var cc=document.getElementById('ac-consent');if(!cc||!cc.checked){consentError(true);return;}consentError(false);}
-  S.parent.privateEntries=true;S.portfolio_private=true;S.parent.share=document.getElementById('ac-share').checked;S.parent.coverPhoto=document.getElementById('ac-cover').checked;
+  S.parent.privateEntries=true;S.portfolio_private=true;
   clearTimeout(saveT);saveT=null;
-  api('account',{name:an,email:ae,password:np,allow_email_share:S.parent.share?1:0,show_photo_on_cover:S.parent.coverPhoto?1:0,consent_guardian:needConsent?1:0,state:packState()}).then(function(j){if(j.consent)BD.consent=j.consent;BD.user.name=j.name;BD.user.email=j.email;if(typeof j.allow_email_share==='boolean')BD.allowEmailShare=j.allow_email_share;if(typeof j.show_photo_on_cover==='boolean')BD.showCoverPhoto=j.show_photo_on_cover;syncUser();if(np){toast('Password changed. Reloading…');setTimeout(function(){location.reload();},900);}else{toast('Settings saved');render();}},function(e){if(/confirm this statement/i.test(e.message||'')){BD.consent=null;consentError(true);}toast(e.message);});
+  var body={name:an,email:ae,password:np,allow_email_share:S.parent.share!==false?1:0,show_photo_on_cover:S.parent.coverPhoto!==false?1:0,consent_guardian:needConsent?1:0,state:packState()};if(np||emChanged){body.current_password=cur;}if(np)body.password_confirm=np2;
+  api('account',body).then(function(j){if(j.consent)BD.consent=j.consent;BD.user.name=j.name;BD.user.email=j.email;if(typeof j.allow_email_share==='boolean')BD.allowEmailShare=j.allow_email_share;if(typeof j.show_photo_on_cover==='boolean')BD.showCoverPhoto=j.show_photo_on_cover;syncUser();if(np){toast('Password changed. Other devices have been signed out. Reloading…');setTimeout(function(){location.reload();},1200);}else{toast('Settings saved');render();}},function(e){var m=e.message||'';if(/confirm this statement/i.test(m)){BD.consent=null;consentError(true);}if(/current password|incorrect password/i.test(m)){updCur();fieldErr('acCurErr',m);var ci=document.getElementById('ac-cur');if(ci){ci.value='';ci.focus();}}toast(m);});
  }
  if(f.id==='emailForm'){ev.preventDefault();var v=emailVals();if(!v)return;
   if(!BD.canEmail){doCopyEmail(v);return;}

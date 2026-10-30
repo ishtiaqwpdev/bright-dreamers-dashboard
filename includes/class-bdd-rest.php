@@ -27,6 +27,7 @@ class BDD_Rest {
 		register_rest_route( self::NS, '/account', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'account' ), 'permission_callback' => $logged_in ) );
 		register_rest_route( self::NS, '/email', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'email' ), 'permission_callback' => $logged_in ) );
 		register_rest_route( self::NS, '/clear', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'clear_entries' ), 'permission_callback' => $logged_in ) );
+		register_rest_route( self::NS, '/privacy', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'privacy' ), 'permission_callback' => $logged_in ) );
 		register_rest_route( self::NS, '/consent', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'consent' ), 'permission_callback' => $logged_in ) );
 		register_rest_route( self::NS, '/logout', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'logout' ), 'permission_callback' => $logged_in ) );
 		register_rest_route( self::NS, '/login', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'login' ), 'permission_callback' => $public ) );
@@ -39,6 +40,25 @@ class BDD_Rest {
 
 	private static function error( $code, $message, $status = 400 ) {
 		return new WP_Error( $code, $message, array( 'status' => $status ) );
+	}
+
+	/**
+	 * Re-authentication for sensitive changes (password, email, delete): the user must enter their
+	 * CURRENT password. Wrong attempts are limited (5 per 15 minutes per account). Generic message.
+	 */
+	private static function check_current_password( WP_REST_Request $req ) {
+		$user = wp_get_current_user();
+		$key  = 'bdd_rl_' . md5( 'reauth_' . $user->ID );
+		if ( (int) get_transient( $key ) >= 5 ) {
+			return self::error( 'bdd_reauth_limit', __( 'Too many incorrect password attempts. Please wait 15 minutes and try again.', 'bright-dreamers-dashboard' ), 429 );
+		}
+		$current = (string) $req->get_param( 'current_password' );
+		if ( '' === $current || ! wp_check_password( $current, $user->user_pass, $user->ID ) ) {
+			set_transient( $key, (int) get_transient( $key ) + 1, 15 * MINUTE_IN_SECONDS );
+			return self::error( 'bdd_current_password', __( 'Your current password is not correct.', 'bright-dreamers-dashboard' ), 403 );
+		}
+		delete_transient( $key );
+		return true;
 	}
 
 	private static function check_auth_nonce( WP_REST_Request $req ) {
@@ -63,7 +83,7 @@ class BDD_Rest {
 			return $state;
 		}
 		if ( bdd_is_bulk_clear( $state, $old ) ) {
-			return self::error( 'bdd_use_clear', __( 'To remove every entry, use “Delete portfolio” in Account Settings.', 'bright-dreamers-dashboard' ), 400 );
+			return self::error( 'bdd_use_clear', __( 'To remove every entry, use “Delete My Child’s Portfolio” in Account Settings.', 'bright-dreamers-dashboard' ), 400 );
 		}
 		// The parent / guardian confirmation is asked once before the child's profile is set up.
 		// (Admins viewing a parent's portfolio are not asked; the parent confirms for themselves.)
@@ -72,6 +92,31 @@ class BDD_Rest {
 		}
 		bdd_save_state( $user_id, $state );
 		return rest_ensure_response( array( 'saved' => true ) );
+	}
+
+	/**
+	 * Privacy & Data toggles (Account Settings): email sharing and the cover photo, saved per parent
+	 * account as soon as they are switched. The portfolio itself is always private and cannot be changed here.
+	 */
+	public static function privacy( WP_REST_Request $req ) {
+		$user_id = get_current_user_id();
+		if ( null !== $req->get_param( 'allow_email_share' ) ) {
+			bdd_set_allow_email_share( $user_id, filter_var( $req->get_param( 'allow_email_share' ), FILTER_VALIDATE_BOOLEAN ) );
+		}
+		if ( null !== $req->get_param( 'show_photo_on_cover' ) ) {
+			bdd_set_show_photo_on_cover( $user_id, filter_var( $req->get_param( 'show_photo_on_cover' ), FILTER_VALIDATE_BOOLEAN ) );
+		}
+		$state = bdd_get_state( $user_id );
+		if ( is_array( $state ) ) {
+			bdd_save_state( $user_id, $state ); // keeps parent.share / parent.coverPhoto in step and portfolio_private = true
+		}
+		return rest_ensure_response(
+			array(
+				'portfolio_private'   => true,
+				'allow_email_share'   => bdd_allow_email_share( $user_id ),
+				'show_photo_on_cover' => bdd_show_photo_on_cover( $user_id ),
+			)
+		);
 	}
 
 	/**
@@ -97,6 +142,11 @@ class BDD_Rest {
 	public static function clear_entries( WP_REST_Request $req ) {
 		if ( ! filter_var( $req->get_param( 'confirm_delete' ), FILTER_VALIDATE_BOOLEAN ) ) {
 			return self::error( 'bdd_confirm_delete', __( 'Please confirm this statement before deleting.', 'bright-dreamers-dashboard' ), 400 );
+		}
+		// Strong confirmation: the person deleting must also enter their own current password.
+		$reauth = self::check_current_password( $req );
+		if ( is_wp_error( $reauth ) ) {
+			return $reauth;
 		}
 		$user_id = bdd_target_user_id( $req->get_param( 'parent' ) );
 		$old     = bdd_get_state( $user_id );
@@ -177,6 +227,18 @@ class BDD_Rest {
 		if ( '' !== $password && strlen( $password ) < 6 ) {
 			return self::error( 'bdd_password', __( 'Password must be at least 6 characters.', 'bright-dreamers-dashboard' ) );
 		}
+		$confirm = $req->get_param( 'password_confirm' );
+		if ( '' !== $password && null !== $confirm && (string) $confirm !== $password ) {
+			return self::error( 'bdd_password_match', __( 'The new passwords do not match.', 'bright-dreamers-dashboard' ) );
+		}
+		// Changing the password or the login email needs the current password (server-side re-authentication).
+		$email_changed = strtolower( $email ) !== strtolower( (string) $user->user_email );
+		if ( '' !== $password || $email_changed ) {
+			$reauth = self::check_current_password( $req );
+			if ( is_wp_error( $reauth ) ) {
+				return $reauth;
+			}
+		}
 
 		// Parent / guardian confirmation: required once before Account Settings can be saved.
 		$had_consent = (bool) bdd_guardian_consent( $user->ID );
@@ -211,7 +273,7 @@ class BDD_Rest {
 				return $state;
 			}
 			if ( bdd_is_bulk_clear( $state, $old_state ) ) {
-				return self::error( 'bdd_use_clear', __( 'To remove every entry, use “Delete portfolio” in Account Settings.', 'bright-dreamers-dashboard' ), 400 );
+				return self::error( 'bdd_use_clear', __( 'To remove every entry, use “Delete My Child’s Portfolio” in Account Settings.', 'bright-dreamers-dashboard' ), 400 );
 			}
 			bdd_save_state( $user->ID, $state );
 		}
@@ -232,6 +294,10 @@ class BDD_Rest {
 
 		if ( ! $had_consent ) {
 			bdd_record_guardian_consent( $user->ID ); // Saved once, after a successful save.
+		}
+		// After a password change, sign out every other session of this account (other browsers / devices).
+		if ( '' !== $password && class_exists( 'WP_Session_Tokens' ) && function_exists( 'wp_get_session_token' ) ) {
+			WP_Session_Tokens::get_instance( $user->ID )->destroy_others( wp_get_session_token() );
 		}
 
 		$fresh = get_userdata( $user->ID );

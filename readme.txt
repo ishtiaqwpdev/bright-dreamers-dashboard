@@ -1,7 +1,7 @@
 === Bright Dreamers Parent Dashboard ===
 Requires at least: 5.8
 Requires PHP: 7.4
-Stable tag: 1.10.0
+Stable tag: 1.11.0
 License: GPLv2 or later
 
 Parent dashboard for Bright Dreamers: a child's portfolio with entries, projects, goals, skills, a journey timeline, a printable book and email sharing.
@@ -27,6 +27,13 @@ Parent dashboard for Bright Dreamers: a child's portfolio with entries, projects
 * Deleting the plugin removes its settings only. Parent accounts, portfolios and photos are kept.
 
 == Changelog ==
+= 1.11.0 =
+* Account Settings redesigned: "Account Information" and "Privacy & Data" cards, page subtitle "Manage your account, privacy settings, and data."
+* Change Password flow: new password + confirm + current password. Changing the password or the login email now requires the current password, checked on the server (5 wrong tries = 15-minute lock). After a password change, every other session of the account is signed out.
+* Privacy Settings are switches and save as soon as they are changed (new endpoint /bd/v1/privacy). "Private by default" is always on and locked; the server keeps every portfolio private.
+* Data Options: Download My Data, Delete My Child's Portfolio (opens a confirmation dialog: checkbox + current password, checked on the server), Manage Sharing Preferences. Privacy Policy button and the client's uploads notice.
+* Removed from parent accounts: the copy/paste Backup section (Create, Copy, Restore from file, Restore pasted backup) and "Load example data". Accounts with no data were already shown an empty portfolio, not example data.
+
 = 1.10.0 =
 * Small footer on every Parent Portal page (and the login screen): Privacy Policy, Terms of Use, Child Safety & Safeguarding, Photo & Media Policy, Contact Us. Links open the existing website pages in a new tab and follow the website footer settings. Financial Transparency and the Photo & Media Consent Form are not included. Hidden on the printable book.
 * Account Settings: new "Privacy & Data" section with the privacy text, the three privacy choices, a note that uploads are not permission to publish (Photo & Media Consent is separate), Privacy Policy link, Manage Sharing Preferences, Download My Data (ZIP: portfolio.json, account.json and the private photos; only for the logged-in parent, nonce-protected, not cached) and Delete My Child's Portfolio. "Start over" keeps only Load example data.
